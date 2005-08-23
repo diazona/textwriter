@@ -92,7 +92,7 @@ public class ImageDisplay extends HttpServlet {
      */
     protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String mode = request == null ? null : request.getParameter("mode");
-        log(mode);
+        log("Processing request: mode=" + mode);
         
         String fontNm = "Bunchl\u00f3 GC";
         Integer fontSz = 16;
@@ -102,9 +102,18 @@ public class ImageDisplay extends HttpServlet {
         String fg = "black";
 
         if (mode != null && mode.equalsIgnoreCase("image")) {
-            fontNm = request.getParameter("font");
-            fontSz = Integer.parseInt(request.getParameter("size"));
+            String ptmp = request.getParameter("font");
+            if (ptmp != null) {
+                fontNm = ptmp;
+            }
+            ptmp = request.getParameter("size");
+            if (ptmp != null) {
+                fontSz = Integer.parseInt(ptmp);
+            }
             text = request.getParameter("text");
+            if (text == null) {
+                text = "";
+            }
             
             if (text.length() > 0) {
                 String bold = request.getParameter("bold");
@@ -146,8 +155,23 @@ public class ImageDisplay extends HttpServlet {
                 int imgId = renderText(text, renderFont, bgcolor, fgcolor);
                 
                 PrintWriter out = response.getWriter();
+                
+                if (request.getRequestURI().endsWith("ImageDisplay")) {
+                    // output some starting HTML
+                    out.println("<html><head><title>Ellipsix Programming TextWriter</title>");
+                    out.println("<link rel='stylesheet' type='text/css' href='/ellipsix.css'>");
+                    out.println("</head><body><div id='Banner'>&nbsp;</div>");
+                    out.println("<div id=\"Menu\"><table><tr>");
+                    out.println("<td><a href=\"http://www.ellipsix.net/index.php\">Home</a></td>");
+                    out.println("<td><a href=\"http://www.ellipsix.net/products.php\">Products</a></td>");
+                    out.println("<td><a href=\"http://www.ellipsix.net/links.php\">Links</a></td>");
+                    out.println("<td><a href=\"http://www.ellipsix.net/contact.php\">Contact</a></td>");
+                    out.println("<td><a href=\"http://www.ellipsix.net/about.php\">About Ellipsix</a></td>");
+                    out.println("</tr></table></div><div id='Body'><div id='Content'>");
+                }
+
                 out.println("Rendition of " +  text + ":<br>");
-                out.println("<img src='" + request.getContextPath() + "/ImageDisplay?imageid=" + imgId + "'>");
+                out.println("<img src='" + request.getContextPath() + "/image?imageid=" + imgId + "'>");
                 out.println("<p>To save this image file to your computer, right-click on the text");
                 out.println("and choose the option &quotSave Image As&quot; or &quot;Save As&quot; from the menu.");
                 out.println("To copy the URL of the image to your system clipboard, right-click");
@@ -155,23 +179,38 @@ public class ImageDisplay extends HttpServlet {
                 out.println("option. <i><u>Please note that the URL will only be valid for a limited");
                 out.println("amount of time.</u></i></p>");
                 out.println("<hr>");
+                out.flush();
+
+                if (request.getRequestURI().endsWith("ImageDisplay")) {
+                    // output the ending HTML
+                    out.println("</div><div id='Footer'>");
+                    out.println("<p>&copy;2005 <a href=\"mailto:contact@ellipsix.net\">Ellipsix Programming</a>;");
+                    out.println("created by David Zaslavsky.</p>");
+                    out.println("<p>This software service is provided by Ellipsix Programming for");
+                    out.println("public use on an as-is basis. Please report any errors to");
+                    out.println("<a href=\"mailto:contact@ellipsix.net\">contact@ellipsix.net</a>.</p>");
+                    out.println("</div></div></body></html>");
+                }
             }
         }
         else {
-            response.setContentType("image/png");
-
             String imageId = request.getParameter("imageid");
             if (imageId == null) {
-                log("null image id");
-                response.sendError(response.SC_BAD_REQUEST);
+                log("Note: null image id");
+                
+                response.sendError(HttpServletResponse.SC_NO_CONTENT);
+
                 return;
             }
+            response.setContentType("image/png");
+
             int index = Integer.parseInt(imageId);
             WeakHashMap<Integer, BufferedImage> images = (WeakHashMap<Integer, BufferedImage>)getServletContext().getAttribute("imagemap");
 
             ServletOutputStream out = response.getOutputStream();
             BufferedImage img = images.get(index);
             ImageIO.write(img, "PNG", out);
+            log("Writing image #" + index);
             out.flush();
             out.close();
         }
@@ -234,6 +273,8 @@ public class ImageDisplay extends HttpServlet {
         AtomicInteger imageIdx = (AtomicInteger)getServletContext().getAttribute("imageindex");
         int index = imageIdx.getAndIncrement();
         images.put(index, image);
+        
+        log("created image #" + index + " with text '" + text + "'");
         
         return index;
     }
