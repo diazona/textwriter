@@ -18,7 +18,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- *
+ * Contains
  * @author David Zaslavsky
  */
 public class FontCollection {
@@ -41,6 +41,16 @@ public class FontCollection {
         return fontNames;
     }
     
+    public static boolean fontExists(String fontName) {
+        fontlock.readLock().lock();
+        try {
+            return fonts.containsKey(fontName);
+        }
+        finally {
+            fontlock.readLock().unlock();
+        }
+    }
+    
     public static Font getFont(String fontName, int style, float size) {
         Font font;
         fontlock.readLock().lock();
@@ -51,6 +61,9 @@ public class FontCollection {
             fontlock.readLock().unlock();
         }
         
+        if (font == null) {
+            return null;
+        }
         return font.deriveFont(style, size);
     }
     
