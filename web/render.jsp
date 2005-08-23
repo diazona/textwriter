@@ -51,29 +51,39 @@
         <div id='Body'>
             <div id='Content'>
                 <p class="intro">Welcome to Ellipsix Programming!</p>
-                <p><b>Important notice for users of TextWriter:</b>
-                In both of the major web applications on this site, there has been
-                a consistent problem of certain data which is stored on the server
-                disappearing for no apparent reason. As yet I don't know what
-                is causing this or how to fix it. In order to understand
-                this, I'd like all users to <span class="important">check what the
-                default font is when you first access the web page</span> - that is,
-                the font that is initially selected on the list.  It should be
-                Bunchl&oacute; GC. If it is, then everything's fine, but if not,
-                <span class="important">please email me right away</span> and
-                include in your message the following things:<ul>
-                    <li>what shows up as the default font for you</li>
-                    <li>the time and date when you first noticed the problem, as
-                    exactly as you can determine it</li>
-                    <li>the exact URL in your web browser's address bar</li>
-                    <li>whether you were in the middle of browsing this site or came
-                    here from a link on another website</li>
-                    <li>this number: <%= id %>
-                </ul>The email address to use is the usual
-                <a href="mailto:contact@ellipsix.net">contact@ellipsix.net</a>
-                Thanks for your cooperation.</p>
-                <p id="Closing">:) David</span></p>
-                <hr>
+                <%
+                    if (!FontCollection.fontExists("Bunchl\u00f3 GC")) {
+                        log("Detected font absence; servlet instance id=" + id);
+                        for (String str : FontCollection.getAllFontNames()) {
+                            log("Existing font: " + str);
+                        }
+                        log("Reconstructed request: " + request.getMethod() + " " + 
+                            request.getRequestURL() + (request.getQueryString() == null ?
+                            "" : ("?" + request.getQueryString())));
+                        %>
+                        <p><b>Important notice for users of TextWriter:</b>
+                        In both of the major web applications on this site, there has been
+                        a consistent problem of certain data which is stored on the server
+                        disappearing for no apparent reason. I have taken steps to try to
+                        fix this, but it appears that something else has gone wrong. To aid
+                        in debugging, I'd appreciate it if you would
+                        <span class="important">please email me</span> at your earliest
+                        convenience and include in your message the following things:<ul>
+                            <li>what shows up as the default font for you</li>
+                            <li>the time and date when you first noticed the problem, as
+                            exactly as you can determine it</li>
+                            <li>the exact URL in your web browser's address bar</li>
+                            <li>whether you were in the middle of browsing this site or came
+                            here from a link on another website</li>
+                            <li>this number: <%= id %>
+                        </ul>The email address to use is the usual
+                        <a href="mailto:contact@ellipsix.net">contact@ellipsix.net</a>
+                        Thanks for your cooperation.</p>
+                        <p id="Closing">:) David</span></p>
+                        <hr>
+                        <%
+                    }
+                %>
                 <%-- This section of code handles searching for new fonts --%>
                 <%
                     if (mode != null && mode.equalsIgnoreCase("fonts")) {
