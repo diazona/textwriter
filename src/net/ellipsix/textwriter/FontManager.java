@@ -18,29 +18,53 @@ import javax.servlet.http.*;
  * @version
  */
 public class FontManager extends HttpServlet {
+    long id;
+    int clid;
     
     /** Initializes the servlet.
      */
     public void init(ServletConfig config) throws ServletException {
         super.init(config);
+        id = System.currentTimeMillis();
+        clid = System.identityHashCode(getClass().getClassLoader());
+        log("Initializing FontManager; servlet instance ID = " + id + "; class loader ID = " + clid +
+                "; context ID = " + System.identityHashCode(getServletContext()));
         
-        String fontdirsParam = config.getInitParameter("fontdirs");
+        ServletContext ctx = config.getServletContext();
+        String fontdirsParam = ctx.getInitParameter("fontdirs");
         if (fontdirsParam != null) {
             String[] fontdirs = fontdirsParam.split("\\:");
             for (String fontdir : fontdirs) {
                 log("Examining font directory: " + fontdir);
-                HashMap<String, String> results = FontCollection.searchFonts(new File(fontdir));
+                HashMap<String, String> results = FontCollection.retrieve(ctx).searchFonts(new File(fontdir));
                 for (String fn : results.keySet()) {
                     log(fn + ": " + results.get(fn));
                 }
             }
         }
+        
+        fontdirsParam = ctx.getInitParameter("datadir") + "/twfonts/";
+        
+        String[] fontdirs = fontdirsParam.split("\\:");
+        for (String fontdir : fontdirs) {
+            log("Examining font directory: " + fontdir);
+            File d = new File(fontdir);
+            if (d.exists()) {
+                HashMap<String, String> results = FontCollection.retrieve(ctx).searchFonts(d);
+                for (String fn : results.keySet()) {
+                    log(fn + ": " + results.get(fn));
+                }
+            }
+        }
+        
+        FontCollection.retrieve(ctx).refreshFontNames();
     }
     
     /** Destroys the servlet.
      */
     public void destroy() {
-        
+        log("Destroying FontManager; servlet instance ID = " + id + "; class loader ID = " + clid +
+                "; context ID = " + System.identityHashCode(getServletContext()));
     }
     
     /** Processes requests for both HTTP <code>GET</code> and <code>POST</code> methods.
@@ -73,25 +97,26 @@ public class FontManager extends HttpServlet {
         boolean refreshReqd = false;
         if (refresh != null && Boolean.parseBoolean(refresh)) {
             refreshReqd = true;
-            FontCollection.initFontArray(true);
+            FontCollection.retrieve(getServletContext()).initFontArray(true);
         }
         String dirName = request.getParameter("dir");
         if (dirName != null) {
             refreshReqd = true;
             File dir = new File(dirName);
             out.println("Examining directory: <b>" + dir.getAbsolutePath() + "</b><br><br>");
-            HashMap<String, String> alist = FontCollection.searchFonts(dir);
+            HashMap<String, String> alist = FontCollection.retrieve(getServletContext()).searchFonts(dir);
             out.println("Status of font update:");
             for (String fn : alist.keySet()) {
                 out.println("<br>File " + fn + ": " +  alist.get(fn));
             }
         }
         else {
-            out.println("<i>null directory name</i>");
+            out.println("<p>No directory specified</p>");
         }
         if (refreshReqd) {
-            FontCollection.refreshFontNames();
+            FontCollection.retrieve(getServletContext()).refreshFontNames();
         }
+        out.println("<p><a href='render.jsp'>Return to TextWriter</a></p>");
         out.println("<hr>");
 
         if (request.getRequestURI().endsWith("FontManager")) {
@@ -129,7 +154,6 @@ public class FontManager extends HttpServlet {
     /** Returns a short description of the servlet.
      */
     public String getServletInfo() {
-        return "Short description";
+        return "Allows remote access to and management of the font set maintained on the system";
     }
-    
 }

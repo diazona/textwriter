@@ -1,5 +1,5 @@
 /*
- * FontManager.java
+ * FontCollection.java
  *
  * Created on August 21, 2005, 1:29 AM
  */
@@ -16,32 +16,43 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import javax.servlet.ServletContext;
 
 /**
  * Contains
+ *
  * @author David Zaslavsky
  */
 public class FontCollection {
-    static HashMap<String, Font> fonts = new HashMap<String, Font>();
-    static ReentrantReadWriteLock fontlock = new ReentrantReadWriteLock(false);
-    static List<String> fontNames;
-    static ReentrantLock fNamelock = new ReentrantLock(false);
+    HashMap<String, Font> fonts = new HashMap<String, Font>();
+    ReentrantReadWriteLock fontlock = new ReentrantReadWriteLock(false);
+    List<String> fontNames;
+    ReentrantLock fNamelock = new ReentrantLock(false);
     
-    /** Creates a new instance of FontManager */
-    private FontCollection() {
+    static final String CONTEXT_ID = "fonts";
+    
+    public static FontCollection retrieve(ServletContext ctx) {
+        FontCollection fc = (FontCollection)ctx.getAttribute(CONTEXT_ID);
+        if (fc == null) {
+            fc = new FontCollection();
+            ctx.setAttribute(CONTEXT_ID, fc);
+            ctx.log("Installing FontCollection " + System.identityHashCode(fc) + " on context ID = " + System.identityHashCode(ctx));
+        }
+        return fc;
     }
     
-    static {
+    /** Creates a new instance of FontCollection */
+    public FontCollection() {
         initFontArray(false);
-        searchFonts(new File(".")); // TODO: rework this to use the servlet init() method
+        searchFonts(new File("."));
         refreshFontNames();
     }
     
-    public static List<String> getAllFontNames() {
+    public List<String> getAllFontNames() {
         return fontNames;
     }
     
-    public static boolean fontExists(String fontName) {
+    public boolean fontExists(String fontName) {
         fontlock.readLock().lock();
         try {
             return fonts.containsKey(fontName);
@@ -51,7 +62,7 @@ public class FontCollection {
         }
     }
     
-    public static Font getFont(String fontName, int style, float size) {
+    public Font getFont(String fontName, int style, float size) {
         Font font;
         fontlock.readLock().lock();
         try {
@@ -68,7 +79,7 @@ public class FontCollection {
     }
     
     // initializes the font list from the GraphicsEnvironment
-    public static void initFontArray(boolean clear) {
+    public void initFontArray(boolean clear) {
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
         String[] fontsArr = ge.getAvailableFontFamilyNames();
         
@@ -87,7 +98,7 @@ public class FontCollection {
     }
 
     // adds fonts found in the given directory to the list
-    public static HashMap<String, String> searchFonts(File dir) {
+    public HashMap<String, String> searchFonts(File dir) {
         HashMap<String, String> alist = new HashMap<String, String>();
         File[] list = dir.listFiles(new FilenameFilter() {
             public boolean accept(File directory, String filename) {
@@ -101,7 +112,7 @@ public class FontCollection {
                 try {
                     Font font = Font.createFont(Font.TRUETYPE_FONT, fnt);
                     if (fonts.containsKey(font.getFamily())) {
-                        alist.put(fnt.getName(), "already added");
+                        alist.put(fnt.getName(), "already added " + font.getFamily());
                     }
                     else {
                         alist.put(fnt.getName(), "added " + font.getFamily());
@@ -121,7 +132,7 @@ public class FontCollection {
     }
 
     // refreshes the list of font names
-    public static void refreshFontNames() {
+    public void refreshFontNames() {
         List<String> newFontNameList;
         fontlock.readLock().lock();
         try {

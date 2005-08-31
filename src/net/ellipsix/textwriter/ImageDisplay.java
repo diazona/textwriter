@@ -32,15 +32,23 @@ import javax.servlet.http.*;
  */
 public class ImageDisplay extends HttpServlet {
     static final Color transparent = new Color(0, 0, 0, 0);
+    static final Color purple = new Color(0xaa, 0, 0xaa, 255);
     
     static Pattern hexPattern;
     static Pattern rgbPattern;
     static Pattern hsbPattern;
     
+    long id;
+    int clid;
+    
     /** Initializes the servlet.
      */
     public void init(ServletConfig config) throws ServletException {
         super.init(config);
+        id = System.currentTimeMillis();
+        clid = System.identityHashCode(getClass().getClassLoader());
+        log("Initializing ImageDisplay; servlet instance ID = " + id + "; class loader ID = " + clid +
+                "; context ID = " + System.identityHashCode(getServletContext()));
         
         ServletContext ctx = config.getServletContext();
         
@@ -76,14 +84,15 @@ public class ImageDisplay extends HttpServlet {
             }
         }
         catch (PatternSyntaxException pse) {
-            log("pattern error: " + pse.getMessage(), pse);
+            log("Pattern error: " + pse.getMessage(), pse);
         }
     }
     
     /** Destroys the servlet.
      */
     public void destroy() {
-        
+        log("Destroying ImageDisplay; servlet instance ID = " + id + "; class loader ID = " + clid +
+                "; context ID = " + System.identityHashCode(getServletContext()));
     }
     
     /** Processes requests for both HTTP <code>GET</code> and <code>POST</code> methods.
@@ -150,7 +159,7 @@ public class ImageDisplay extends HttpServlet {
                     }
                 }
 
-                Font renderFont = FontCollection.getFont(fontNm, style, fontSz);
+                Font renderFont = FontCollection.retrieve(getServletContext()).getFont(fontNm, style, fontSz);
 
                 int imgId = renderText(text, renderFont, bgcolor, fgcolor);
                 
@@ -264,6 +273,7 @@ public class ImageDisplay extends HttpServlet {
             image = image.getSubimage(0, 0, (int)(bounds.getWidth() + 1), (int)(bounds.getHeight() + 1));
         }
         catch (RasterFormatException rfe) {
+            log("Error in trimming image", rfe);
             // usually means that the text boundary was bigger than the canvas
             // ignore for now
         }
@@ -378,6 +388,9 @@ public class ImageDisplay extends HttpServlet {
         }
         else if (input.equals("pink")) {
             return Color.pink;
+        }
+        else if (input.equals("purple")) {
+            return purple;
         }
         else {
             return null;
