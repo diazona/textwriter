@@ -20,20 +20,23 @@
     <servlet-name>FontManager</servlet-name>
     <url-pattern>/FontManager</url-pattern>
   </servlet-mapping>
+  
   <session-config>
-    <session-timeout>
-            30
-        </session-timeout>
+    <session-timeout>30</session-timeout>
   </session-config>
+  
   <welcome-file-list>
     <welcome-file>
-            index.jsp
-        </welcome-file>
+      index.jsp
+    </welcome-file>
     <welcome-file>
-            index.html
-        </welcome-file>
+      index.html
+    </welcome-file>
     <welcome-file>
-            index.htm
-        </welcome-file>
+      index.htm
+    </welcome-file>
+    <welcome-file>
+      render.jsp
+    </welcome-file>
   </welcome-file-list>
 </web-app>
