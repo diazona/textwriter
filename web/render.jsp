@@ -12,9 +12,21 @@
             84, 90, 96, 100, 108};
 
     long id;
+    int clid;
+    int cid;
 
-    public void init() {
+    public void jspInit() {
         id = System.currentTimeMillis();
+        clid = System.identityHashCode(getClass().getClassLoader());
+        cid = System.identityHashCode(getServletContext());
+        
+        log("Initializing render.jsp; servlet instance ID = " + id + "; class loader ID = " + clid +
+                "; context ID = " + cid);
+    }
+    
+    public void jspDestroy() {
+        log("Destroying render.jsp; servlet instance ID = " + id + "; class loader ID = " + clid +
+                "; context ID = " + cid);
     }
 %>
 
@@ -52,11 +64,11 @@
             <div id='Content'>
                 <p class="intro">Welcome to Ellipsix Programming!</p>
                 <%
-                    if (!FontCollection.fontExists("Bunchl\u00f3 GC")) {
+                    if (!FontCollection.retrieve(application).fontExists("Bunchl\u00f3 GC")) {
                         log("Detected font absence; servlet instance id=" + id);
-                        for (String str : FontCollection.getAllFontNames()) {
+                        /*for (String str : FontCollection.getAllFontNames()) {
                             log("Existing font: " + str);
-                        }
+                        }*/
                         log("Reconstructed request: " + request.getMethod() + " " + 
                             request.getRequestURL() + (request.getQueryString() == null ?
                             "" : ("?" + request.getQueryString())));
@@ -69,13 +81,13 @@
                         in debugging, I'd appreciate it if you would
                         <span class="important">please email me</span> at your earliest
                         convenience and include in your message the following things:<ul>
-                            <li>what shows up as the default font for you</li>
                             <li>the time and date when you first noticed the problem, as
                             exactly as you can determine it</li>
                             <li>the exact URL in your web browser's address bar</li>
                             <li>whether you were in the middle of browsing this site or came
                             here from a link on another website</li>
-                            <li>this number: <%= id %>
+                            <li>the <i>instance ID</i>, which is <%= id %></li>
+                            <li>the <i>loader ID</i>, which is <%= clid %></li>
                         </ul>The email address to use is the usual
                         <a href="mailto:contact@ellipsix.net">contact@ellipsix.net</a>
                         Thanks for your cooperation.</p>
@@ -132,7 +144,7 @@
                     <select name="font">
                         <%
                             boolean selected = false;
-                            for (String str : FontCollection.getAllFontNames()) {
+                            for (String str : FontCollection.retrieve(application).getAllFontNames()) {
                                 if (!selected && str.equalsIgnoreCase(fontNm)) {
                                     selected = true;
                                     %>
@@ -198,6 +210,7 @@
                     assumed as 1.0 (opaque).</li>
                     <li>Color name: Acceptable names with their hexadecimal equivalents
                     are listed below.<ul>
+                    <%-- Note that these values are defined in ImageDisplay.parseColor(String) --%>
                         <li><b>transparent</b> = <i>0x00000000</i></li>
                         <li><b>white</b> = <i>0xFFFFFFFF</i></li>
                         <li><b>light gray</b> = <i>0xC0C0C0FF</i></li>
@@ -211,8 +224,9 @@
                         <li><b>green</b> = <i>0x00FF00FF</i></li>
                         <li><b>cyan</b> = <i>0x00FFFFFF</i></li>
                         <li><b>blue</b> = <i>0x0000FFFF</i></li>
-                        <li><b>magenta</b> = <i>0xFF00FF</i></li>
-                    </ul>Names are not case-sensitive.</li>
+                        <li><b>magenta</b> = <i>0xFF00FFFF</i></li>
+                        <li><b>purple</b> = <i>0xAA00AAFF</i></li>
+                    </ul>Color designations are not case-sensitive.</li>
                 </ul></p>
             </div>
             <div id='Footer'>
