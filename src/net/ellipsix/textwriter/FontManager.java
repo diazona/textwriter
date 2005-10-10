@@ -4,6 +4,29 @@
  * Created on August 21, 2005, 2:04 PM
  */
 
+/*
+ * The content of this file is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this file; if not, write to
+ *
+ * Free Software Foundation, Inc.
+ * 59 Temple Place, Suite 330
+ * Boston, MA 02111-1307 USA
+ *
+ * or download the license from the Free Software Foundation website at
+ *
+ * http://www.gnu.org/licenses/gpl.html
+ */
+
 package net.ellipsix.textwriter;
 
 import java.io.*;
@@ -30,34 +53,9 @@ public class FontManager extends HttpServlet {
         log("Initializing FontManager; servlet instance ID = " + id + "; class loader ID = " + clid +
                 "; context ID = " + System.identityHashCode(getServletContext()));
         
+        // initialize the font collection if it's not done already
         ServletContext ctx = config.getServletContext();
-        String fontdirsParam = ctx.getInitParameter("fontdirs");
-        if (fontdirsParam != null) {
-            String[] fontdirs = fontdirsParam.split("\\:");
-            for (String fontdir : fontdirs) {
-                log("Examining font directory: " + fontdir);
-                HashMap<String, String> results = FontCollection.retrieve(ctx).searchFonts(new File(fontdir));
-                for (String fn : results.keySet()) {
-                    log(fn + ": " + results.get(fn));
-                }
-            }
-        }
-        
-        fontdirsParam = ctx.getInitParameter("datadir") + "/twfonts/";
-        
-        String[] fontdirs = fontdirsParam.split("\\:");
-        for (String fontdir : fontdirs) {
-            log("Examining font directory: " + fontdir);
-            File d = new File(fontdir);
-            if (d.exists()) {
-                HashMap<String, String> results = FontCollection.retrieve(ctx).searchFonts(d);
-                for (String fn : results.keySet()) {
-                    log(fn + ": " + results.get(fn));
-                }
-            }
-        }
-        
-        FontCollection.retrieve(ctx).refreshFontNames();
+        FontCollection.retrieve(ctx);
     }
     
     /** Destroys the servlet.
@@ -97,7 +95,7 @@ public class FontManager extends HttpServlet {
         boolean refreshReqd = false;
         if (refresh != null && Boolean.parseBoolean(refresh)) {
             refreshReqd = true;
-            FontCollection.retrieve(getServletContext()).initFontArray(true);
+            FontCollection.retrieve(getServletContext()).addSystemFonts(true);
         }
         String dirName = request.getParameter("dir");
         if (dirName != null) {
@@ -155,5 +153,9 @@ public class FontManager extends HttpServlet {
      */
     public String getServletInfo() {
         return "Allows remote access to and management of the font set maintained on the system";
+    }
+    
+    public int[] getFontSizeList() {
+        return FontCollection.retrieve(getServletContext()).
     }
 }
