@@ -125,7 +125,7 @@ public class FontCollection {
             String[] fontdirs = fontdirsParam.split("\\:");
             for (String fontdir : fontdirs) {
                 ctx.log("Examining font directory: " + fontdir);
-                HashMap<String, String> results = FontCollection.retrieve(ctx).searchFonts(new File(fontdir));
+                HashMap<String, String> results = searchFonts(new File(fontdir));
                 for (String fn : results.keySet()) {
                     ctx.log(fn + ": " + results.get(fn));
                 }
@@ -140,7 +140,7 @@ public class FontCollection {
             ctx.log("Examining font directory: " + fontdir);
             File d = new File(fontdir);
             if (d.exists()) {
-                HashMap<String, String> results = FontCollection.retrieve(ctx).searchFonts(d);
+                HashMap<String, String> results = searchFonts(d);
                 for (String fn : results.keySet()) {
                     ctx.log(fn + ": " + results.get(fn));
                 }
@@ -303,7 +303,7 @@ public class FontCollection {
      * @return 
      */
     public int[] getFontSizeList() {
-        if (sizeList == null) {
+        if (sizeList != null) {
             return sizeList;
         }
         else {
