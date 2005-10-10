@@ -32,7 +32,7 @@
     long id;
     int clid;
     int cid;
-
+    
     public void jspInit() {
         id = System.currentTimeMillis();
         clid = System.identityHashCode(getClass().getClassLoader());
@@ -180,6 +180,7 @@
                     Size:
                     <select name="size">
                         <%
+                            int[] sizeList = FontCollection.retrieve(getServletContext()).getFontSizeList();
                             for (int size : sizeList) {
                                 if (fontSz.compareTo(size) == 0) {
                                     %>
