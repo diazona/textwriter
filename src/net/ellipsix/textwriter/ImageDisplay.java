@@ -4,6 +4,29 @@
  * Created on August 21, 2005, 1:20 AM
  */
 
+/*
+ * The content of this file is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this file; if not, write to
+ *
+ * Free Software Foundation, Inc.
+ * 59 Temple Place, Suite 330
+ * Boston, MA 02111-1307 USA
+ *
+ * or download the license from the Free Software Foundation website at
+ *
+ * http://www.gnu.org/licenses/gpl.html
+ */
+
 package net.ellipsix.textwriter;
 
 import java.awt.Color;
@@ -17,26 +40,25 @@ import java.awt.image.RasterFormatException;
 import java.io.*;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 import javax.imageio.ImageIO;
 
 import javax.servlet.*;
 import javax.servlet.http.*;
+import net.ellipsix.Parser;
+import net.ellipsix.doodles.HSB10ColorParser;
+import net.ellipsix.doodles.HexColorParser;
+import net.ellipsix.doodles.JavaColorNameParser;
+import net.ellipsix.doodles.RGB10ColorParser;
 
-/**
+/** Creates, stores, and renders image data for TextWriter.
  *
  * @author David Zaslavsky
- * @version
  */
+// TODO: create a system of vector images using RenderableImage
+// TODO: create a custom "glyph-vector-layouter"
 public class ImageDisplay extends HttpServlet {
     static final Color transparent = new Color(0, 0, 0, 0);
     static final Color purple = new Color(0xaa, 0, 0xaa, 255);
-    
-    static Pattern hexPattern;
-    static Pattern rgbPattern;
-    static Pattern hsbPattern;
     
     long id;
     int clid;
@@ -60,31 +82,6 @@ public class ImageDisplay extends HttpServlet {
         AtomicInteger imageIdx = (AtomicInteger)ctx.getAttribute("imageindex");
         if (imageIdx == null) {
             ctx.setAttribute("imageindex", new AtomicInteger());
-        }
-
-        try {
-            if (hexPattern == null) {
-                // recognizes a string of six or eight consecutive hex digits, with
-                // an optional 0x in front
-                hexPattern = Pattern.compile("(?:0x)?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})?");
-            }
-            if (rgbPattern == null) {
-                // recognizes a possibly parenthesized grouping of three or four
-                // integer coordinates separated by an optional comma and/or whitespace
-                String rgbgroup = "(\\d{0,3})";
-                String rgbrep = "(?:(?:\\s*\\,\\s*|\\s+)" + rgbgroup + ")";
-                rgbPattern = Pattern.compile("\\(?\\s*" + rgbgroup + rgbrep + rgbrep + rgbrep + "?\\s*\\)?");
-            }
-            if (hsbPattern == null) {
-                // recognizes a possibly parenthesized grouping of three or four
-                // decimal coordinates separated by an optional comma and/or whitespace
-                String hsbgroup = "([01]\\.\\d+)";
-                String hsbrep = "(?:(?:\\s*\\,\\s*|\\s+)" + hsbgroup + ")";
-                hsbPattern = Pattern.compile("\\(?\\s*" + hsbgroup + hsbrep + hsbrep + hsbrep + "?\\s*\\)?");
-            }
-        }
-        catch (PatternSyntaxException pse) {
-            log("Pattern error: " + pse.getMessage(), pse);
         }
     }
     
@@ -244,7 +241,7 @@ public class ImageDisplay extends HttpServlet {
     /** Returns a short description of the servlet.
      */
     public String getServletInfo() {
-        return "Outputs image data which has been generated and stored by the program";
+        return "Generates, stores, and outputs image data";
     }
     
     
@@ -273,7 +270,7 @@ public class ImageDisplay extends HttpServlet {
             image = image.getSubimage(0, 0, (int)(bounds.getWidth() + 1), (int)(bounds.getHeight() + 1));
         }
         catch (RasterFormatException rfe) {
-            log("Error in trimming image", rfe);
+            log("Error in trimming image: " + rfe.getMessage());
             // usually means that the text boundary was bigger than the canvas
             // ignore for now
         }
@@ -289,111 +286,19 @@ public class ImageDisplay extends HttpServlet {
         return index;
     }
 
+    Parser<Color> cParse = new JavaColorNameParser(new HexColorParser(new RGB10ColorParser(new HSB10ColorParser())));
+    
     public Color parseColor(String input) {
         input = input.toLowerCase();
-        int red, green, blue, alpha = 255;
-
-        Matcher matcher = hexPattern.matcher(input);
-        try {
-            if (matcher.matches()) {
-                red = Integer.parseInt(matcher.group(1), 16);
-                green = Integer.parseInt(matcher.group(2), 16);
-                blue = Integer.parseInt(matcher.group(3), 16);
-                String str = matcher.group(4);
-                if (str != null) {
-                    alpha = Integer.parseInt(str, 16);
-                }
-                return new Color(red, green, blue, alpha);
-            }
-        }
-        catch (NumberFormatException nfe) {
-        }
-
-        matcher = rgbPattern.matcher(input);
-        try {
-            if (matcher.matches()) {
-                red = Integer.parseInt(matcher.group(1), 10);
-                green = Integer.parseInt(matcher.group(2), 10);
-                blue = Integer.parseInt(matcher.group(3), 10);
-                String str = matcher.group(4);
-                if (str != null) {
-                    alpha = Integer.parseInt(str, 10);
-                }
-                return new Color(red, green, blue, alpha);
-            }
-        }
-        catch (NumberFormatException nfe) {
-        }
-
-        float hue, saturation, value, alphaf;
-
-        matcher = hsbPattern.matcher(input);
-        try {
-            if (matcher.matches()) {
-                hue = Float.parseFloat(matcher.group(1));
-                saturation = Float.parseFloat(matcher.group(2));
-                value = Float.parseFloat(matcher.group(3));
-                String str = matcher.group(4);
-                if (str != null) {
-                    alphaf = Float.parseFloat(str);
-                    if (alphaf > 1.0) {
-                        alphaf = 1.0f;
-                    }
-                    alpha = (int)(alphaf * 255);
-                }
-                return new Color((Color.HSBtoRGB(hue, saturation, value) & ((1 << 24) - 1)) | (alpha << 24), true);
-            }
-        }
-        catch (NumberFormatException nfe) {
-        }
 
         if (input.equals("transparent")) {
             return transparent;
-        }
-        else if (input.equals("black")) {
-            return Color.black;
-        }
-        else if (input.equals("white")) {
-            return Color.white;
-        }
-        else if (input.equals("red")) {
-            return Color.red;
-        }
-        else if (input.equals("green")) {
-            return Color.green;
-        }
-        else if (input.equals("blue")) {
-            return Color.blue;
-        }
-        else if (input.equals("dark grey")) {
-            return Color.darkGray;
-        }
-        else if (input.equals("gray")) {
-            return Color.gray;
-        }
-        else if (input.equals("light gray")) {
-            return Color.lightGray;
-        }
-        else if (input.equals("magenta")) {
-            return Color.magenta;
-        }
-        else if (input.equals("cyan")) {
-            return Color.cyan;
-        }
-        else if (input.equals("yellow")) {
-            return Color.yellow;
-        }
-        else if (input.equals("orange")) {
-            return Color.orange;
-        }
-        else if (input.equals("pink")) {
-            return Color.pink;
         }
         else if (input.equals("purple")) {
             return purple;
         }
         else {
-            return null;
+            return cParse.parse(input);
         }
     }
 }
