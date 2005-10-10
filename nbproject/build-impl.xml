@@ -172,7 +172,9 @@ is divided into following sections:
     COMPILATION SECTION
     ======================
     -->
-    <target name="deps-jar" depends="init" unless="no.deps"/>
+    <target name="deps-jar" depends="init" unless="no.deps">
+        <ant target="jar" inheritall="false" antfile="${project.ellipsix}/build.xml"/>
+    </target>
     <target name="-pre-pre-compile" depends="init,deps-jar">
         <mkdir dir="${build.classes.dir}"/>
     </target>
@@ -349,7 +351,9 @@ is divided into following sections:
     CLEANUP SECTION
     ======================
     -->
-    <target name="deps-clean" depends="init" unless="no.deps"/>
+    <target name="deps-clean" depends="init" unless="no.deps">
+        <ant target="clean" inheritall="false" antfile="${project.ellipsix}/build.xml"/>
+    </target>
     <target name="do-clean" depends="init">
         <delete includeEmptyDirs="true" quiet="true">
             <fileset dir="${build.web.dir}/WEB-INF/lib"/>
