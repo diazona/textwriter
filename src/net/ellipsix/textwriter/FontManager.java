@@ -156,6 +156,6 @@ public class FontManager extends HttpServlet {
     }
     
     public int[] getFontSizeList() {
-        return FontCollection.retrieve(getServletContext()).
+        return FontCollection.retrieve(getServletContext()).getFontSizeList();
     }
 }
