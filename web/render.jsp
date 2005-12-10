@@ -154,7 +154,9 @@
                 %>
                 <%-- This section implements the submission form --%>
                 <p>To render a text, type it into the text box below and choose the
-                attributes you would like.</p>
+                attributes you would like.<br>
+                <font size=-1><i>See the notes below about special characters and
+                acceptable color input.</i></font>
                 <form method="POST" action="render.jsp">
                     <input type="hidden" name="mode" value="image">
                     Text: <input type="text" name="text" value="<%= text %>"><br>
@@ -199,10 +201,38 @@
                     <input type="checkbox" name="italic" value="true"<%= (style & Font.ITALIC) > 0 ? " checked" : "" %>>Italic<br>
                     Background color: <input type="text" name="bgcolor" value="<%= bg %>"><br>
                     Text color: <input type="text" name="fgcolor" value="<%= fg %>"><br>
-                    <font size=-1><i>See the note below about acceptable color input</i></font><br>
                     <input type="submit" value="Render">
                 </form>
                 <hr>
+                <p><font color="#ff3a03"><b>NEW:</b></font>TextWriter now allows you to put
+                certain special characters in your input text by using the following
+                escape sequences:<ul>
+                    <li><b>\'</b> places an acute accent (fada) over the next letter
+                    if it is a vowel. For example, giving as input the text
+                    <code>this is \'a t\'est</code> produces a rendition of the
+                    string <i>this is &aacute; t&eacute;st</i>.</li>
+                    <li><b>\'</b> places a dot over the next letter if it is a
+                    consonant which accepts a dot: b, c, d, f, g, m, p, s, or t
+                    (or their capitalized equivalents). In order for this to work,
+                    you must be using a Unicode font, which is any font that has
+                    a name ending in <i>GC</i>, or that has <i>Unicode</i> in the
+                    name.</li>
+                    <li><b>\r</b> substitutes a normal seanchl&oacute; lowercase r
+                    in place of the normal miniature capital R, if you are
+                    using a seanchl&oacute; Unicode font (any with <i>-chl&oacute; GC</i> in
+                    the name).</li>
+                    <li><b>\s</b> substitutes a normal seanchl&oacute; lowercase s
+                    in place of the normal miniature capital S, if you are
+                    using a seanchl&oacute; Unicode font (any with <i>-chl&oacute; GC</i> in
+                    the name).</li>
+                    <li><b>\&</b> substitutes a standard ampersand in your text
+                    in place of the Tyronian sign usually used in seanchl&oacute;,
+                    if you are using a seanchl&oacute; Unicode font (any with
+                    <i>-chl&oacute; GC</i> in the name). This is not really recommended,
+                    since the standard ampersand looks really weird in seanchl&oacute;.</li>
+                </ul>In version 0.4b, these escape characters are only functional for some
+                fonts. By the time of the official 0.4 release, they should more closely
+                match the actual capabilities of the fonts.</p>
                 <p>Colors may be input either as names or as numerical values. Several
                 different formats are possible:<ul>
                     <li>Hexadecimal: <b>0x</b>000000<i>00</i><br>The <b>0x</b> at the
