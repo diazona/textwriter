@@ -8,49 +8,377 @@ package net.ellipsix.textwriter.engine;
 
 import java.awt.Font;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+
+import static net.ellipsix.textwriter.engine.AccentedVowelCodeMap.*;
+import static net.ellipsix.textwriter.engine.SeanchloCharCodeMap.*;
 
 /**
  *
  * @author David Zaslavsky
  */
-public class SeanchloGaelicParser implements InputParser<SeanchloCharCodeMap> {
-    HashMap<String, SeanchloCharCodeMap> charmaps;
+public class SeanchloGaelicParser implements InputParser {
+    HashMap<String, HashSet<CharacterCodeMap>> charmaps;
     
     /** Creates a new instance of SeanchloGaelicParser */
     public SeanchloGaelicParser() {
         super();
-        charmaps = new HashMap<String, SeanchloCharCodeMap>();
+        charmaps = new HashMap<String, HashSet<CharacterCodeMap>>();
     }
 
-    public void addCharacterCodeMap(SeanchloCharCodeMap cmap) {
-        charmaps.put(cmap.getFontName(), cmap);
+    public void addCharacterCodeMap(CharacterCodeMap cmap) {
+        HashSet<CharacterCodeMap> clist = charmaps.get(cmap.getFontName());
+        if (clist == null) {
+            clist = new HashSet<CharacterCodeMap>();
+            charmaps.put(cmap.getFontName(), clist);
+        }
+        clist.add(cmap);
     }
 
+    public void removeCharacterCodeMap(CharacterCodeMap cmap) {
+        HashSet<CharacterCodeMap> clist = charmaps.get(cmap.getFontName());
+        if (clist != null) {
+            clist.remove(cmap);
+        }
+    }
+    
     public String prepForFont(String input, Font fnt) {
-        return prepForFont(input, fnt.getFamily());
+        return prepForFont(input, fnt.getFontName(), fnt.getFamily());
     }
 
-    public String prepForFont(String input, String fontname) {
-        SeanchloCharCodeMap cmap = charmaps.get(fontname);
-        // TODO: perhaps add something to search for a font class if the font
-        // name is not found
-        if (cmap == null) {
+    static enum CharParseState {NONE, ESCAPED, FADA, GRAVE, DOT};
+    
+    private int getCharacter(LinkedList<CharacterCodeMap> cmaps, int lci, int def) {
+        for (CharacterCodeMap cmap : cmaps) {
+            if (cmap.isProvidedLCI(lci)) {
+                return cmap.getCharacter(lci);
+            }
+        }
+        return def;
+    }
+    
+    public String prepForFont(String input, String... fontSpecs) {
+        LinkedList<CharacterCodeMap> cmaps = new LinkedList<CharacterCodeMap>();
+        HashSet<CharacterCodeMap> tmp;
+        for (String spc : fontSpecs) {
+            if ((tmp = charmaps.get(spc)) != null) {
+                cmaps.addAll(tmp);
+            }
+        }
+        // Any maps added with an empty name are used always
+        if ((tmp = charmaps.get("")) != null) {
+            cmaps.addAll(tmp);
+        }
+        if (cmaps.size() == 0) {
             return input;
         }
-        StringBuilder sb = new StringBuilder(input);
+        
         // Plan:
         // -replace \'a with a-fada etc.
         // -replace \.b with dotted b etc.
         // -replace & with tyronian symbol
         // -replace r (except \r) with seanchlo r
         // -replace s (except \s) with seanchlo s
-        int index = -1;
-        while ((index = sb.indexOf("\\'", index + 1)) >= 0) {
-            //sb.replace(index); // something
-        }
-    }
+        StringBuilder sb = new StringBuilder();
+        CharParseState state = CharParseState.NONE;
+        CharParseState nextState;
+        for (char c : input.toCharArray()) {
+            nextState = CharParseState.NONE;
+            switch (c) {
+                case '\\':
+                    if (state == CharParseState.ESCAPED) {
+                        sb.append('\\');
+                    }
+                    else {
+                        nextState = CharParseState.ESCAPED;
+                    }
+                    break;
+                /*case 'n':
+                    if (state == CharParseState.ESCAPED) {
+                        sb.append('\n');
+                        nextState = CharParseState.NONE;
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;*/
+                case '`': // back accent
+                    if (state == CharParseState.ESCAPED) {
+                        nextState = CharParseState.GRAVE;
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case '\'':
+                    if (state == CharParseState.ESCAPED) {
+                        nextState = CharParseState.FADA;
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case '.':
+                    if (state == CharParseState.ESCAPED) {
+                        nextState = CharParseState.DOT;
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case '&':
+                    if (state != CharParseState.ESCAPED) {
+                        sb.appendCodePoint(getCharacter(cmaps, TYRONIAN, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                // TODO: maybe make the dotted consonants the default, and allow
+                // backslashes to override
+                case 'b':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_b, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'B':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_B, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'c':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_c, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'C':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_C, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'd':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_d, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'D':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_D, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'f':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_f, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'F':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_F, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'g':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_g, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'G':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_G, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'm':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_m, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'M':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_M, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'p':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_p, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'P':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_P, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'r':
+                    if (state == CharParseState.ESCAPED) {
+                        sb.appendCodePoint(getCharacter(cmaps, SEANCHLO_r, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
 
-    public void removeCharacterCodeMap(SeanchloCharCodeMap cmap) {
+                case 's':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_s, c));
+                    }
+                    else if (state == CharParseState.ESCAPED) {
+                        sb.appendCodePoint(getCharacter(cmaps, SEANCHLO_s, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'S':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_S, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 't':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_t, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'T':
+                    if (state == CharParseState.DOT) {
+                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_T, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                    
+                case 'a':
+                    if (state == CharParseState.FADA) {
+                        sb.appendCodePoint(getCharacter(cmaps, a_ACUTE, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'A':
+                    if (state == CharParseState.FADA) {
+                        sb.appendCodePoint(getCharacter(cmaps, A_ACUTE, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'e':
+                    if (state == CharParseState.FADA) {
+                        sb.appendCodePoint(getCharacter(cmaps, e_ACUTE, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'E':
+                    if (state == CharParseState.FADA) {
+                        sb.appendCodePoint(getCharacter(cmaps, E_ACUTE, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'i':
+                    if (state == CharParseState.FADA) {
+                        sb.appendCodePoint(getCharacter(cmaps, i_ACUTE, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'I':
+                    if (state == CharParseState.FADA) {
+                        sb.appendCodePoint(getCharacter(cmaps, I_ACUTE, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'o':
+                    if (state == CharParseState.FADA) {
+                        sb.appendCodePoint(getCharacter(cmaps, o_ACUTE, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'O':
+                    if (state == CharParseState.FADA) {
+                        sb.appendCodePoint(getCharacter(cmaps, O_ACUTE, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'u':
+                    if (state == CharParseState.FADA) {
+                        sb.appendCodePoint(getCharacter(cmaps, u_ACUTE, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                case 'U':
+                    if (state == CharParseState.FADA) {
+                        sb.appendCodePoint(getCharacter(cmaps, U_ACUTE, c));
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                    break;
+                default:
+                    sb.append(c);
+            }
+            state = nextState;
+        }
+        return sb.toString();
     }
-    
 }

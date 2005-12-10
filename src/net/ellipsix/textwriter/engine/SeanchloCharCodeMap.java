@@ -32,7 +32,9 @@ package net.ellipsix.textwriter.engine;
 import java.io.Serializable;
 import java.util.Arrays;
 
-/**
+/** 
+ * Defines the set of LCIs corresponding to the dotted consonants and other
+ * nonstandard characters used in seanchlo print. 
  *
  * @author David Zaslavsky
  */
@@ -40,35 +42,36 @@ import java.util.Arrays;
 // It will contain the character codes for each of the dotted consonants and the & sign
 public class SeanchloCharCodeMap implements CharacterCodeMap , Serializable {
     // These numbers represent sorted order by Unicode code point
-    public static final int DOTTED_C = 0;
-    public static final int DOTTED_c = 1;
-    public static final int DOTTED_G = 2;
-    public static final int DOTTED_g = 3;
-    public static final int SEANCHLO_s = 4;
-    public static final int SEANCHLO_r = 5;
-    public static final int DOTTED_B = 6;
-    public static final int DOTTED_b = 7;
-    public static final int DOTTED_D = 8;
-    public static final int DOTTED_d = 9;
-    public static final int DOTTED_F = 10;
-    public static final int DOTTED_f = 11;
-    public static final int DOTTED_M = 12;
-    public static final int DOTTED_m = 13;
-    public static final int DOTTED_P = 14;
-    public static final int DOTTED_p = 15;
-    public static final int DOTTED_S = 16;
-    public static final int DOTTED_s = 17;
-    public static final int DOTTED_T = 18;
-    public static final int DOTTED_t = 19;
-    public static final int TYRONIAN = 20;
+    public static final int DOTTED_C = 0x010a;
+    public static final int DOTTED_c = 0x010b;
+    public static final int DOTTED_G = 0x0120;
+    public static final int DOTTED_g = 0x0121;
+    public static final int SEANCHLO_s = 0x017f;
+    public static final int SEANCHLO_r = 0x027c;
+    public static final int DOTTED_B = 0x1e02;
+    public static final int DOTTED_b = 0x1e03;
+    public static final int DOTTED_D = 0x1e0a;
+    public static final int DOTTED_d = 0x1e0b;
+    public static final int DOTTED_F = 0x1e1e;
+    public static final int DOTTED_f = 0x1e1f;
+    public static final int DOTTED_M = 0x1e40;
+    public static final int DOTTED_m = 0x1e41;
+    public static final int DOTTED_P = 0x1e56;
+    public static final int DOTTED_p = 0x1e57;
+    public static final int DOTTED_S = 0x1e60;
+    public static final int DOTTED_s = 0x1e61;
+    public static final int DOTTED_T = 0x1e6a;
+    public static final int DOTTED_t = 0x1e6b;
+    public static final int TYRONIAN = 0x204a;
     
     // These are the Unicode code points for the seanchlo characters, in sorted order
+    // This is just the same list as above
+    // TODO: change this to use symbolic names in the array declaration
     public static final int[] unicodeGlyphCoords = {
-        0x010a, 0x010b, 0x0120, 0x0121, 0x017f, 0x027c, 0x1e0a, 0x1e0b,
-          0x1e1e, 0x1e1f, 0x1e02, 0x1e03, 0x1e40, 0x1e41, 0x1e56, 0x1e57,
+        0x010a, 0x010b, 0x0120, 0x0121, 0x017f, 0x027c, 0x1e02, 0x1e03, 
+          0x1e0a, 0x1e0b, 0x1e1e, 0x1e1f, 0x1e40, 0x1e41, 0x1e56, 0x1e57,
           0x1e60, 0x1e61, 0x1e6a, 0x1e6b, 0x204a
     };
-    
     
     // this array stores the bitwise negation of the coordinate, so that the
     // default array value (0) represents an invalid character (-1)

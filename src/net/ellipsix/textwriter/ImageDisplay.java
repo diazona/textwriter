@@ -49,6 +49,9 @@ import net.ellipsix.doodles.HSB10ColorParser;
 import net.ellipsix.doodles.HexColorParser;
 import net.ellipsix.doodles.JavaColorNameParser;
 import net.ellipsix.doodles.RGB10ColorParser;
+import net.ellipsix.textwriter.engine.AccentedVowelCodeMap;
+import net.ellipsix.textwriter.engine.SeanchloCharCodeMap;
+import net.ellipsix.textwriter.engine.SeanchloGaelicParser;
 
 /** Creates, stores, and renders image data for TextWriter.
  *
@@ -62,6 +65,7 @@ public class ImageDisplay extends HttpServlet {
     
     long id;
     int clid;
+    SeanchloGaelicParser textParser;
     
     /** Initializes the servlet.
      */
@@ -83,6 +87,10 @@ public class ImageDisplay extends HttpServlet {
         if (imageIdx == null) {
             ctx.setAttribute("imageindex", new AtomicInteger());
         }
+        
+        textParser = new SeanchloGaelicParser();
+        textParser.addCharacterCodeMap(new SeanchloCharCodeMap("Seanchlo", SeanchloCharCodeMap.unicodeGlyphCoords));
+        textParser.addCharacterCodeMap(new AccentedVowelCodeMap("Unicode", AccentedVowelCodeMap.unicodeGlyphCoords));
     }
     
     /** Destroys the servlet.
@@ -157,6 +165,18 @@ public class ImageDisplay extends HttpServlet {
                 }
 
                 Font renderFont = FontCollection.retrieve(getServletContext()).getFont(fontNm, style, fontSz);
+                
+                log("Input: " + text + " in font " + renderFont.toString());
+                // TODO: put information about font classes in a file or something
+                if (renderFont.getFamily().endsWith("GC")) {
+                    log("Using seanchlo mode");
+                    text = textParser.prepForFont(text, renderFont.getFontName(), renderFont.getFamily(), "Seanchlo", "Unicode");
+                }
+                else {
+                    log("Using normal mode");
+                    text = textParser.prepForFont(text, renderFont.getFontName(), renderFont.getFamily(), "Unicode");
+                }
+                log("Output: " + text);
 
                 int imgId = renderText(text, renderFont, bgcolor, fgcolor);
                 
@@ -176,7 +196,7 @@ public class ImageDisplay extends HttpServlet {
                     out.println("</tr></table></div><div id='Body'><div id='Content'>");
                 }
 
-                out.println("Rendition of " +  text + ":<br>");
+                out.println("Rendition of the input text:<br>");
                 out.println("<img src='" + request.getContextPath() + "/image?imageid=" + imgId + "'>");
                 out.println("<p>To save this image file to your computer, right-click on the text");
                 out.println("and choose the option &quotSave Image As&quot; or &quot;Save As&quot; from the menu.");
