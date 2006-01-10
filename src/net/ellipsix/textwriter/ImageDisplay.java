@@ -38,6 +38,7 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.RasterFormatException;
 import java.io.*;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.imageio.ImageIO;
@@ -89,7 +90,7 @@ public class ImageDisplay extends HttpServlet {
         }
         
         textParser = new SeanchloGaelicParser();
-        textParser.addCharacterCodeMap(new SeanchloCharCodeMap("Seanchlo", SeanchloCharCodeMap.unicodeGlyphCoords));
+        textParser.addCharacterCodeMap(new SeanchloCharCodeMap("seanchlo", SeanchloCharCodeMap.unicodeGlyphCoords));
         textParser.addCharacterCodeMap(new AccentedVowelCodeMap("Unicode", AccentedVowelCodeMap.unicodeGlyphCoords));
     }
     
@@ -165,17 +166,18 @@ public class ImageDisplay extends HttpServlet {
                 }
 
                 Font renderFont = FontCollection.retrieve(getServletContext()).getFont(fontNm, style, fontSz);
+                Set<FontCollection.TaggedFont.FontAttribute> fontAttrs = 
+                  FontCollection.retrieve(getServletContext()).getFontAttributes(fontNm);
+                String[] fontSpecNames = new String[fontAttrs.size() + 2];
+                int i = 0;
+                fontSpecNames[i++] = renderFont.getFontName();
+                fontSpecNames[i++] = renderFont.getFamily();
+                for (FontCollection.TaggedFont.FontAttribute attr : fontAttrs) {
+                    fontSpecNames[i++] = attr.getName();
+                }
                 
                 log("Input: " + text + " in font " + renderFont.toString());
-                // TODO: put information about font classes in a file or something
-                if (renderFont.getFamily().endsWith("GC")) {
-                    log("Using seanchlo mode");
-                    text = textParser.prepForFont(text, renderFont.getFontName(), renderFont.getFamily(), "Seanchlo", "Unicode");
-                }
-                else {
-                    log("Using normal mode");
-                    text = textParser.prepForFont(text, renderFont.getFontName(), renderFont.getFamily(), "Unicode");
-                }
+                text = textParser.prepForFont(text, fontSpecNames);
                 log("Output: " + text);
 
                 int imgId = renderText(text, renderFont, bgcolor, fgcolor);
