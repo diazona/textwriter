@@ -22,10 +22,12 @@
 --%>
 
 <%@taglib prefix="jstlc" uri="http://java.sun.com/jsp/jstl/core"%>
+<%@taglib prefix="incl" tagdir="/WEB-INF/tags"%>
 
 <%-- Import all required classes --%>
 
 <%@page import="java.awt.Font"%>
+<%@page import="java.util.Set"%>
 <%@page import="net.ellipsix.textwriter.FontCollection"%>
 
 <%!
@@ -65,7 +67,9 @@
     </head>
     <body>
         <div id='Banner'>&nbsp;</div>
+        <incl:menu/>
         <%-- Copied from /include/menu.php --%>
+        <%--
         <div id="Menu">
             <table>
                 <tr>
@@ -77,6 +81,7 @@
                 </tr>
             </table>
         </div>
+        --%>
         <%-- end /include/menu.php --%>
         <div id='Body'>
             <div id='Content'>
@@ -164,16 +169,37 @@
                     <select name="font">
                         <%
                             boolean selected = false;
-                            for (String str : FontCollection.retrieve(application).getAllFontNames()) {
-                                if (!selected && str.equalsIgnoreCase(fontNm)) {
+                            FontCollection ftc = FontCollection.retrieve(application);
+                            for (String name : ftc.getAllFontNames()) {
+                                String disp;
+                                Set<FontCollection.TaggedFont.FontAttribute> attrs = ftc.getFontAttributes(name);
+                                if (attrs != null && attrs.size() > 0) {
+                                    StringBuilder attrlist = new StringBuilder(" (");
+                                    for (FontCollection.TaggedFont.FontAttribute a : attrs) {
+                                        if (a.getName() != "source") {
+                                            attrlist.append(a.getName()).append(",");
+                                        }
+                                    }
+                                    if (attrlist.length() > 2) {
+                                        attrlist.deleteCharAt(attrlist.length() - 1).append(")");
+                                        disp = name + attrlist.toString();
+                                    }
+                                    else {
+                                        disp = name;
+                                    }
+                                }
+                                else {
+                                    disp = name;
+                                }
+                                if (!selected && name.equalsIgnoreCase(fontNm)) {
                                     selected = true;
                                     %>
-                                    <option selected><%= str %></option>
+                                    <option selected value="<%= name %>"><%= disp %></option>
                                     <%
                                 }
                                 else {
                                     %>
-                                    <option><%= str %></option>
+                                    <option value="<%= name %>"><%= disp %></option>
                                     <%
                                 }
                             }
@@ -204,35 +230,37 @@
                     <input type="submit" value="Render">
                 </form>
                 <hr>
-                <p><font color="#ff3a03"><b>NEW:</b></font>TextWriter now allows you to put
+                <p><font color="#ff3a03"><b>NEW:</b></font> The fonts in the list are
+                labeled with attributes, which are listed in parentheses after the
+                font name, in no particular order. The attributes are there to give
+                both you (the user) and the computer information about the capabilities
+                of the different fonts, especially regarding which accented characters
+                each one supports.</p>
+                <p><font color="#ff3a03"><b>NEW:</b></font> TextWriter now allows you to put
                 certain special characters in your input text by using the following
                 escape sequences:<ul>
                     <li><b>\'</b> places an acute accent (fada) over the next letter
                     if it is a vowel. For example, giving as input the text
                     <code>this is \'a t\'est</code> produces a rendition of the
-                    string <i>this is &aacute; t&eacute;st</i>.</li>
-                    <li><b>\'</b> places a dot over the next letter if it is a
+                    string <i>this is &aacute; t&eacute;st</i>. This only works for
+                    the fonts which are labeled &quot;Unicode&quot;</li>
+                    <li><b>\.</b> places a dot over the next letter if it is a
                     consonant which accepts a dot: b, c, d, f, g, m, p, s, or t
-                    (or their capitalized equivalents). In order for this to work,
-                    you must be using a Unicode font, which is any font that has
-                    a name ending in <i>GC</i>, or that has <i>Unicode</i> in the
-                    name.</li>
+                    (or their capitalized equivalents).  This only works for
+                    the fonts which are labeled &quot;Unicode&quot;</li>
                     <li><b>\r</b> substitutes a normal seanchl&oacute; lowercase r
                     in place of the normal miniature capital R, if you are
-                    using a seanchl&oacute; Unicode font (any with <i>-chl&oacute; GC</i> in
-                    the name).</li>
+                    using a seanchl&oacute;-capable Unicode font (any font with the
+                    attributes &quot;seanchlo&quot; and &quot;Unicode&quot;).</li>
                     <li><b>\s</b> substitutes a normal seanchl&oacute; lowercase s
                     in place of the normal miniature capital S, if you are
-                    using a seanchl&oacute; Unicode font (any with <i>-chl&oacute; GC</i> in
-                    the name).</li>
+                    using a seanchl&oacute;-capable Unicode font (any font with the
+                    attributes &quot;seanchlo&quot; and &quot;Unicode&quot;).</li>
                     <li><b>\&</b> substitutes a standard ampersand in your text
                     in place of the Tyronian sign usually used in seanchl&oacute;,
-                    if you are using a seanchl&oacute; Unicode font (any with
-                    <i>-chl&oacute; GC</i> in the name). This is not really recommended,
-                    since the standard ampersand looks really weird in seanchl&oacute;.</li>
-                </ul>In version 0.4b, these escape characters are only functional for some
-                fonts. By the time of the official 0.4 release, they should more closely
-                match the actual capabilities of the fonts.</p>
+                    if you areusing a seanchl&oacute;-capable Unicode font (any font
+                    with the attributes &quot;seanchlo&quot; and &quot;Unicode&quot;).</li>
+                </ul></p>
                 <p>Colors may be input either as names or as numerical values. Several
                 different formats are possible:<ul>
                     <li>Hexadecimal: <b>0x</b>000000<i>00</i><br>The <b>0x</b> at the
