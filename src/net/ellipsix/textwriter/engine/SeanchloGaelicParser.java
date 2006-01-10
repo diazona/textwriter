@@ -47,7 +47,7 @@ public class SeanchloGaelicParser implements InputParser {
         return prepForFont(input, fnt.getFontName(), fnt.getFamily());
     }
 
-    static enum CharParseState {NONE, ESCAPED, FADA, GRAVE, DOT};
+    static enum CharParseState {NONE, FADA, GRAVE, DOT};
     
     private int getCharacter(LinkedList<CharacterCodeMap> cmaps, int lci, int def) {
         for (CharacterCodeMap cmap : cmaps) {
@@ -82,20 +82,29 @@ public class SeanchloGaelicParser implements InputParser {
         // -replace s (except \s) with seanchlo s
         StringBuilder sb = new StringBuilder();
         CharParseState state = CharParseState.NONE;
-        CharParseState nextState;
+        CharParseState nextState = CharParseState.NONE;
+        boolean escaped = false;
+        boolean nextEscaped = false;
+        
         for (char c : input.toCharArray()) {
-            nextState = CharParseState.NONE;
+            if (c == '\\') {
+                if (escaped) {
+                    sb.append('\\');
+                    nextEscaped = false;
+                }
+                else {
+                    nextEscaped = true;
+                }
+            }
+            else {
+                nextState = CharParseState.NONE;
+                nextEscaped = false;
+            }
             switch (c) {
                 case '\\':
-                    if (state == CharParseState.ESCAPED) {
-                        sb.append('\\');
-                    }
-                    else {
-                        nextState = CharParseState.ESCAPED;
-                    }
                     break;
                 /*case 'n':
-                    if (state == CharParseState.ESCAPED) {
+                    if (escaped) {
                         sb.append('\n');
                         nextState = CharParseState.NONE;
                     }
@@ -104,7 +113,7 @@ public class SeanchloGaelicParser implements InputParser {
                     }
                     break;*/
                 case '`': // back accent
-                    if (state == CharParseState.ESCAPED) {
+                    if (escaped) {
                         nextState = CharParseState.GRAVE;
                     }
                     else {
@@ -112,7 +121,7 @@ public class SeanchloGaelicParser implements InputParser {
                     }
                     break;
                 case '\'':
-                    if (state == CharParseState.ESCAPED) {
+                    if (escaped) {
                         nextState = CharParseState.FADA;
                     }
                     else {
@@ -120,7 +129,7 @@ public class SeanchloGaelicParser implements InputParser {
                     }
                     break;
                 case '.':
-                    if (state == CharParseState.ESCAPED) {
+                    if (escaped) {
                         nextState = CharParseState.DOT;
                     }
                     else {
@@ -128,7 +137,7 @@ public class SeanchloGaelicParser implements InputParser {
                     }
                     break;
                 case '&':
-                    if (state != CharParseState.ESCAPED) {
+                    if (!escaped) {
                         sb.appendCodePoint(getCharacter(cmaps, TYRONIAN, c));
                     }
                     else {
@@ -250,23 +259,33 @@ public class SeanchloGaelicParser implements InputParser {
                     }
                     break;
                 case 'r':
-                    if (state == CharParseState.ESCAPED) {
+                    if (escaped) {
                         sb.appendCodePoint(getCharacter(cmaps, SEANCHLO_r, c));
                     }
                     else {
                         sb.append(c);
                     }
                     break;
-
                 case 's':
                     if (state == CharParseState.DOT) {
-                        sb.appendCodePoint(getCharacter(cmaps, DOTTED_s, c));
-                    }
-                    else if (state == CharParseState.ESCAPED) {
-                        sb.appendCodePoint(getCharacter(cmaps, SEANCHLO_s, c));
+                        if (escaped) {
+                            System.err.println("dss");
+                            sb.appendCodePoint(getCharacter(cmaps, DOTTED_SEANCHLO_s, c));
+                        }
+                        else {
+                            System.err.println("ds");
+                            sb.appendCodePoint(getCharacter(cmaps, DOTTED_s, c));
+                        }
                     }
                     else {
-                        sb.append(c);
+                        if (escaped) {
+                            System.err.println("ss");
+                            sb.appendCodePoint(getCharacter(cmaps, SEANCHLO_s, c));
+                        }
+                        else {
+                            System.err.println("s");
+                            sb.append(c);
+                        }
                     }
                     break;
                 case 'S':
@@ -377,7 +396,9 @@ public class SeanchloGaelicParser implements InputParser {
                 default:
                     sb.append(c);
             }
+            System.err.println(c + " " + state + " " + escaped);
             state = nextState;
+            escaped = nextEscaped;
         }
         return sb.toString();
     }
