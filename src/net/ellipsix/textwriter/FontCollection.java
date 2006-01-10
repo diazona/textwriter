@@ -31,12 +31,20 @@ package net.ellipsix.textwriter;
 
 import java.awt.Font;
 import java.awt.GraphicsEnvironment;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileFilter;
+import java.io.FileReader;
 import java.io.FilenameFilter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.servlet.ServletContext;
@@ -47,20 +55,104 @@ import javax.servlet.ServletContext;
  * are safe for access by multiple threads.
  * @author David Zaslavsky
  */
-// TODO: provide a mechanism for organizing fonts into categories
+// TODO: read/write lock for font attributes
 public class FontCollection {
+    public static class TaggedFont {
+        public static class FontAttribute {
+            String name;
+            String info;
+            public FontAttribute(String name) {
+                this(name, null);
+            }
+            public FontAttribute(String name, String info) {
+                super();
+                this.name = name;
+                this.info = info;
+            }
+            public String getName() {
+                return name;
+            }
+            public String getInfo() {
+                return info;
+            }
+            public String toString() {
+                return name + ":" + info;
+            }
+        }
+        
+        Font fnt;
+        HashSet<FontAttribute> attributes;
+        
+        public TaggedFont(Font fnt) {
+            this.fnt = fnt;
+            attributes = new HashSet<FontAttribute>();
+        }
+        
+        public Font getFont() {
+            return fnt;
+        }
+        
+        public void setAttributes(Set<FontAttribute> attrs) {
+            attributes.addAll(attrs);
+        }
+        
+        public void setAttribute(FontAttribute attr) {
+            attributes.add(attr);
+        }
+        
+        public void clearAttributes(Set<FontAttribute> attrs) {
+            attributes.removeAll(attrs);
+        }
+        
+        public void clearAttribute(FontAttribute attr) {
+            attributes.remove(attr);
+        }
+        
+        public Set getAttributes() {
+            return Collections.unmodifiableSet(attributes);
+        }
+    }
+    
+    /**
+     * The default list of offered font sizes.
+     */
     static final int[] defSizeList = {8, 9, 10, 11, 12, 13, 14, 15, 16,
             18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46,
             48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 76, 80,
             84, 90, 96, 100, 108};
+    /**
+     * The list of font sizes offered by this <code>FontCollection</code>.
+     */
     int[] sizeList = null;
 
-    HashMap<String, Font> fonts = new HashMap<String, Font>();
+    /**
+     * A map of font names to their corresponding fonts. This map includes all the fonts
+     * managed by this <code>FontCollection</code>.
+     */
+    HashMap<String, TaggedFont> fonts = new HashMap<String, TaggedFont>();
+    /**
+     * Access lock for the font map.
+     */
     ReentrantReadWriteLock fontlock = new ReentrantReadWriteLock(false);
+    /**
+     * The list of font names managed by this <code>FontCollection</code>.
+     */
     List<String> fontNames;
+    /**
+     * Access lock for the font name list.
+     */
     ReentrantLock fNamelock = new ReentrantLock(false);
     
+    /**
+     * The name used as an attribute key in a <code>ServletContext</code> to identify a
+     * <code>FontCollection</code>.
+     */
     static final String CONTEXT_ID = "fonts";
+    
+    HashMap<String, TaggedFont.FontAttribute> indexedAttributes;
+    
+    public static final TaggedFont.FontAttribute SYSTEM_FONT = new TaggedFont.FontAttribute("system");
+    public static final TaggedFont.FontAttribute UNICODE_FONT = new TaggedFont.FontAttribute("Unicode");
     
     /**
      * Retrieves the <code>FontCollection</code> associated with the given
@@ -84,8 +176,9 @@ public class FontCollection {
      * system fonts and any fonts from the working directory.
      */
     public FontCollection() {
-        addSystemFonts(false);
+        indexedAttributes = new HashMap<String, TaggedFont.FontAttribute>();
         searchFonts(new File("."));
+        addSystemFonts(false);
         refreshFontNames();
     }
     
@@ -115,10 +208,7 @@ public class FontCollection {
      * @see #searchFonts(String)
      */
     public FontCollection(ServletContext ctx, boolean addSystemFonts) {
-        if (addSystemFonts) {
-            addSystemFonts(false);
-        }
-        
+        indexedAttributes = new HashMap<String, TaggedFont.FontAttribute>();
         // add font directories
         String fontdirsParam = ctx.getInitParameter("fontdirs");
         if (fontdirsParam != null) {
@@ -140,11 +230,17 @@ public class FontCollection {
             ctx.log("Examining font directory: " + fontdir);
             File d = new File(fontdir);
             if (d.exists()) {
-                HashMap<String, String> results = searchFonts(d);
+                HashMap<String, String> results = searchFontsRecursive(d, null);
                 for (String fn : results.keySet()) {
                     ctx.log(fn + ": " + results.get(fn));
                 }
             }
+        }
+        
+        // add any system fonts which were not there already
+        if (addSystemFonts) {
+            ctx.log("Adding system fonts");
+            addSystemFonts(false);
         }
         
         refreshFontNames();
@@ -191,33 +287,74 @@ public class FontCollection {
         }
     }
     
+    public TaggedFont.FontAttribute getIndexedAttribute(String name) {
+        return getIndexedAttribute(name, null);
+    }
+    
+    public TaggedFont.FontAttribute getIndexedAttribute(String name, String info) {
+        TaggedFont.FontAttribute newAttr = indexedAttributes.get(name);
+        if (newAttr == null) {
+            newAttr = new TaggedFont.FontAttribute(name, info);
+            indexedAttributes.put(name, newAttr);
+        }
+        return newAttr;
+    }
+    
+    public Set<String> getIndexedAttributeNames() {
+        return indexedAttributes.keySet();
+    }
+    
     /**
-     * 
-     * @param fontName 
-     * @param style 
-     * @param size 
-     * @return 
+     * Returns a font of the given family, style, and size. If the font family name
+     * given is not managed by this <code>FontCollection</code>, then this method returns
+     * <code>null</code>.
+     * @param fontName the family name of the desired font
+     * @param style an integer indicating the style of the desired font
+     * @param size a <code>float</code> indicating the size, in points, of the desired font
+     * @return a <code>Font</code> object representing the desired font
+     * @see Font#deriveFont(int,float)
      */
     public Font getFont(String fontName, int style, float size) {
-        Font font;
+        TaggedFont tfont;
         fontlock.readLock().lock();
         try {
-            font = fonts.get(fontName);
+            tfont = fonts.get(fontName);
         }
         finally {
             fontlock.readLock().unlock();
         }
         
+        if (tfont == null) {
+            return null;
+        }
+        Font font = tfont.getFont();
         if (font == null) {
             return null;
         }
         return font.deriveFont(style, size);
     }
     
-    // initializes the font list from the GraphicsEnvironment
+    public Set<TaggedFont.FontAttribute> getFontAttributes(String fontName) {
+        TaggedFont tfont;
+        fontlock.readLock().lock();
+        try {
+            tfont = fonts.get(fontName);
+        }
+        finally {
+            fontlock.readLock().unlock();
+        }
+        
+        if (tfont == null) {
+            return null;
+        }
+        return tfont.getAttributes();
+    }
+
     /**
-     * 
-     * @param clear 
+     * Adds the fonts offered by the graphics system to the list of fonts managed by
+     * this <code>FontCollection</code>.
+     * @param clear whether to clear out the existing list of fonts before adding the system fonts
+     * @see GraphicsEnvironment#getAvailableFontFamilyNames()
      */
     public void addSystemFonts(boolean clear) {
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
@@ -229,27 +366,119 @@ public class FontCollection {
                 fonts.clear();
             }
             for (String fnt : fontsArr) {
-                fonts.put(fnt, new Font(fnt, Font.PLAIN, 1));
+                if (fonts.containsKey(fnt)) {
+                    continue;
+                }
+                TaggedFont tf = new TaggedFont(new Font(fnt, Font.PLAIN, 1));
+                tf.setAttribute(SYSTEM_FONT);
+                if (fnt.contains("Unicode")) {
+                    tf.setAttribute(UNICODE_FONT);
+                }
+                fonts.put(fnt, tf);
             }
         }
         finally {
             fontlock.writeLock().unlock();
         }
     }
-
-    // adds fonts found in the given directory to the list
+    
     /**
-     * 
-     * @param dir 
-     * @return 
+     * Adds any fonts in the given directory and any directories under it to the
+     * list of fonts managed by this <code>FontCollection</code>.
+     * <p>The <code>HashMap</code> returned from this method contains as its keys the
+     * names of the font files in the given directory and its subdirectories.
+     * For each font file name, the associated value is a human-readable string
+     * indicating the status of that font file: whether the font contained in it
+     * was added to the list, or the font conflicted with one already in the list
+     * and was not added, or the file was corrupted and could not be read as a font,
+     * etc.</p>
+     * @param dir the directory to search
+     * @param results a <code>HashMap</code> to store the results in, or <code>null</code>
+     * @return a <code>HashMap</code> containing status information for each font file in the
+     * given directory, which will be the same as the parameter <code>results</code> if
+     * that parameter was non-null
+     */
+    public HashMap<String, String> searchFontsRecursive(File dir, HashMap<String, String> results) {
+        if (results == null) {
+            results = new HashMap<String, String>();
+        }
+        File[] dirList = dir.listFiles(new FileFilter() {
+            public boolean accept(File file) {
+                return file.isDirectory();
+            }
+        });
+        results.putAll(searchFonts(dir));
+        for (File d : dirList) {
+            searchFontsRecursive(d, results);
+        }
+        return results;
+    }
+
+    /**
+     * Adds any fonts in the given directory to the list of fonts managed by this
+     * <code>FontCollection</code>. If the given <code>File</code> is an actual
+     * file, rather than a directory, then the given <code>File</code> itself will
+     * be checked, and if it is a font file, it will be added. This method does not
+     * recurse into subdirectories of the given directory.
+     * <p>If the parameter is a directory and there exists a file named
+     * <code>.font.attributes</code> in it, then a font attribute will be created
+     * for each non-empty line of the file, with a name corresponding to the contents
+     * of that line, and will be tagged to each font added from the directory.
+     * If any line contains a double colon (&quot;<code>::</code>&quot;)
+     * then only the part of the line after the first such double colon is used for
+     * the name of the attribute. (Occurences of the double colon sequence
+     * after the first on a line are not treated specially.) The part of the line
+     * before the double colon is parsed as a file name, and only a font imported
+     * from the file with that name (if any) will have that attribute added to it.</p>
+     * <p>The <code>HashMap</code> returned from this method contains as its keys the
+     * names of the font files in the given directory. For each font file name, the
+     * associated value is a human-readable string indicating the status of that font
+     * file: whether the font contained in it was added to the list, or the font
+     * conflicted with one already in the list and was not added, or the file was
+     * corrupted and could not be read as a font, etc.</p>
+     * @param dir the directory to search
+     * @return a <code>HashMap</code> containing status information for each font file in the
+     * given directory
      */
     public HashMap<String, String> searchFonts(File dir) {
         HashMap<String, String> alist = new HashMap<String, String>();
-        File[] list = dir.listFiles(new FilenameFilter() {
-            public boolean accept(File directory, String filename) {
-                return filename.toLowerCase().endsWith(".ttf");
+        File[] list;
+        
+        HashSet<TaggedFont.FontAttribute> attrs = new HashSet<TaggedFont.FontAttribute>();
+        LinkedList<String> spAttrs = new LinkedList<String>();
+        attrs.add(new TaggedFont.FontAttribute("source", dir.getAbsolutePath()));
+        
+        if (dir.isDirectory()) {
+            File dirAttrFile = new File(dir, ".font.attributes");
+            if (dirAttrFile.canRead()) {
+                try {
+                    BufferedReader br = new BufferedReader(new FileReader(dirAttrFile));
+                    for (String s = br.readLine(); s != null; s = br.readLine()) {
+                        s = s.trim();
+                        if (s.length() == 0) {
+                            continue;
+                        }
+                        if (s.contains("::")) {
+                            spAttrs.add(s);
+                        }
+                        else {
+                            attrs.add(getIndexedAttribute(s));
+                        }
+                    }
+                }
+                catch (IOException ioe) {
+                }
             }
-        });
+            
+            list = dir.listFiles(new FilenameFilter() {
+                public boolean accept(File directory, String filename) {
+                    return filename.toLowerCase().endsWith(".ttf");
+                }
+            });
+        }
+        else {
+            list = new File[] {dir};
+        }
         
         fontlock.writeLock().lock();
         try {
@@ -260,8 +489,24 @@ public class FontCollection {
                         alist.put(fnt.getName(), "already added " + font.getFamily());
                     }
                     else {
-                        alist.put(fnt.getName(), "added " + font.getFamily());
-                        fonts.put(font.getFamily(), font);
+                        String ff = font.getFamily();
+                        alist.put(fnt.getName(), "added " + ff);
+                        
+                        TaggedFont tf = new TaggedFont(font);
+                        tf.setAttributes(attrs);
+                        if (ff.contains("Unicode")) {
+                            tf.setAttribute(UNICODE_FONT);
+                        }
+                        ListIterator<String> spIterator = spAttrs.listIterator();
+                        while (spIterator.hasNext()) {
+                            String spA = spIterator.next();
+                            if (spA.startsWith(fnt.getName())) {
+                                int splitIdx = spA.indexOf("::", fnt.getName().length());
+                                tf.setAttribute(getIndexedAttribute(spA.substring(splitIdx + 2)));
+                                spIterator.remove();
+                            }
+                        }
+                        fonts.put(font.getFamily(), tf);
                     }
                 }
                 catch (Exception e) {
@@ -276,7 +521,11 @@ public class FontCollection {
         return alist;
     }
 
-    // refreshes the list of font names
+    /**
+     * Recreates the cached list of font names managed by this <code>FontCollection</code>.
+     * This should be called after any operation or sequence of operations which changes
+     * the actual list of fonts managed by this <code>FontCollection</code>.
+     */
     public void refreshFontNames() {
         List<String> newFontNameList;
         fontlock.readLock().lock();
@@ -299,8 +548,10 @@ public class FontCollection {
     }
     
     /**
-     * 
-     * @return 
+     * Returns the suggested list of sizes offered by this <code>FontCollection</code>.
+     * It is possible to obtain fonts from this <code>FontCollection</code> with sizes
+     * which are not contained in this list.
+     * @return the list of sizes
      */
     public int[] getFontSizeList() {
         if (sizeList != null) {
