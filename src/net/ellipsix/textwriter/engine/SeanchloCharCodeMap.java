@@ -62,6 +62,7 @@ public class SeanchloCharCodeMap implements CharacterCodeMap , Serializable {
     public static final int DOTTED_s = 0x1e61;
     public static final int DOTTED_T = 0x1e6a;
     public static final int DOTTED_t = 0x1e6b;
+    public static final int DOTTED_SEANCHLO_s = 0x1e9b;
     public static final int TYRONIAN = 0x204a;
     
     // These are the Unicode code points for the seanchlo characters, in sorted order
@@ -70,7 +71,7 @@ public class SeanchloCharCodeMap implements CharacterCodeMap , Serializable {
     public static final int[] unicodeGlyphCoords = {
         0x010a, 0x010b, 0x0120, 0x0121, 0x017f, 0x027c, 0x1e02, 0x1e03, 
           0x1e0a, 0x1e0b, 0x1e1e, 0x1e1f, 0x1e40, 0x1e41, 0x1e56, 0x1e57,
-          0x1e60, 0x1e61, 0x1e6a, 0x1e6b, 0x204a
+          0x1e60, 0x1e61, 0x1e6a, 0x1e6b, 0x1e9b, 0x204a
     };
     
     // this array stores the bitwise negation of the coordinate, so that the
