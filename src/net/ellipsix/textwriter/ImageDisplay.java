@@ -60,214 +60,83 @@ import net.ellipsix.textwriter.engine.SeanchloGaelicParser;
  */
 // TODO: create a system of vector images using RenderableImage
 // TODO: create a custom "glyph-vector-layouter"
-public class ImageDisplay extends HttpServlet {
-    static final Color transparent = new Color(0, 0, 0, 0);
-    static final Color purple = new Color(0xaa, 0, 0xaa, 255);
-    
-    long id;
-    int clid;
-    SeanchloGaelicParser textParser;
-    
-    /** Initializes the servlet.
-     */
-    public void init(ServletConfig config) throws ServletException {
-        super.init(config);
-        id = System.currentTimeMillis();
-        clid = System.identityHashCode(getClass().getClassLoader());
-        log("Initializing ImageDisplay; servlet instance ID = " + id + "; class loader ID = " + clid +
-                "; context ID = " + System.identityHashCode(getServletContext()));
-        
-        ServletContext ctx = config.getServletContext();
-        
-        WeakHashMap<Integer, BufferedImage> images = (WeakHashMap<Integer, BufferedImage>)ctx.getAttribute("imagemap");
-        if (images == null) {
-            ctx.setAttribute("imagemap", new WeakHashMap<Integer, BufferedImage>());
-        }
-        
-        AtomicInteger imageIdx = (AtomicInteger)ctx.getAttribute("imageindex");
-        if (imageIdx == null) {
-            ctx.setAttribute("imageindex", new AtomicInteger());
-        }
-        
-        textParser = new SeanchloGaelicParser();
+public class ImageDisplay {
+    // TODO: develop some equivalent for this
+/*        textParser = new SeanchloGaelicParser();
         textParser.addCharacterCodeMap(new SeanchloCharCodeMap("seanchlo", SeanchloCharCodeMap.unicodeGlyphCoords));
-        textParser.addCharacterCodeMap(new AccentedVowelCodeMap("Unicode", AccentedVowelCodeMap.unicodeGlyphCoords));
-    }
+        textParser.addCharacterCodeMap(new AccentedVowelCodeMap("Unicode", AccentedVowelCodeMap.unicodeGlyphCoords));*/
     
-    /** Destroys the servlet.
-     */
-    public void destroy() {
-        log("Destroying ImageDisplay; servlet instance ID = " + id + "; class loader ID = " + clid +
-                "; context ID = " + System.identityHashCode(getServletContext()));
-    }
     
-    /** Processes requests for both HTTP <code>GET</code> and <code>POST</code> methods.
-     * @param request servlet request
-     * @param response servlet response
-     */
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        String mode = request == null ? null : request.getParameter("mode");
-        log("Processing request: mode=" + mode);
-        
-        String fontNm = "Bunchl\u00f3 GC";
-        Integer fontSz = 16;
-        String text = "";
-        int style = 0;
-        String bg = "transparent";
-        String fg = "black";
 
-        if (mode != null && mode.equalsIgnoreCase("image")) {
-            String ptmp = request.getParameter("font");
-            if (ptmp != null) {
-                fontNm = ptmp;
-            }
-            ptmp = request.getParameter("size");
-            if (ptmp != null) {
-                fontSz = Integer.parseInt(ptmp);
-            }
-            text = request.getParameter("text");
-            if (text == null) {
-                text = "";
+    /**
+     * Produces the font corresponding to the given specs.
+     *
+     * @param fontName the name of the font family
+     * @param fontSize the desired font size
+     * @param bold should be {@code "true"} to get a bold font,
+     *  anything else otherwise
+     * @param italic should be {@code "true"} to get an italic font,
+     *  anything else otherwise
+     */
+    protected Font parseFont(String fontName, int fontSize, boolean bold, boolean italic) throws IOException {
+        int style = 0;
+        if (bold != null && bold.equalsIgnoreCase("true")) {
+            style |= Font.BOLD;
+        }
+        if (italic != null && italic.equalsIgnoreCase("true")) {
+            style |= Font.ITALIC;
+        }
+        return FontCollection.getFont(fontName, Integer.parseInt(fontSize), style);
+    }
+    
+    /**
+     * Parses a color from a 8-character hex digit specification.
+     *
+     * This is almost the same thing that {@link Color#decode(String)} does,
+     * except that this method handles an alpha channel.
+     *
+     * @param color the string specification of the color, which must contain
+     *  exactly 8 hexadecimal digits
+     * @return the Color object corresponding to the input string
+     */
+    protected Color parseColor(String color) {
+        int red = Integer.parseInt(color.substring(0, 2), 16);
+        int green = Integer.parseInt(color.substring(2, 4), 16);
+        int blue = Integer.parseInt(color.substring(4, 6), 16);
+        int alpha = Integer.parseInt(color.substring(6, 8), 16);
+        return new Color(red, green, blue, alpha);
+    }
+        
+        if (text.length() > 0) {
+
+            String bgtmp = request.getParameter("bgcolor");
+            String fgtmp = request.getParameter("fgcolor");
+
+            Set<FontCollection.TaggedFont.FontAttribute> fontAttrs = 
+                FontCollection.retrieve(getServletContext()).getFontAttributes(fontNm);
+            String[] fontSpecNames = new String[fontAttrs.size() + 2];
+            int i = 0;
+            fontSpecNames[i++] = renderFont.getFontName();
+            fontSpecNames[i++] = renderFont.getFamily();
+            for (FontCollection.TaggedFont.FontAttribute attr : fontAttrs) {
+                fontSpecNames[i++] = attr.getName();
             }
             
-            if (text.length() > 0) {
-                String bold = request.getParameter("bold");
-                String italic = request.getParameter("italic");
-                if (bold != null && bold.equalsIgnoreCase("true")) {
-                    style |= Font.BOLD;
-                }
-                if (italic != null && italic.equalsIgnoreCase("true")) {
-                    style |= Font.ITALIC;
-                }
+            text = textParser.prepForFont(text, fontSpecNames);
 
-                String bgtmp = request.getParameter("bgcolor");
-                String fgtmp = request.getParameter("fgcolor");
-
-                Color bgcolor = null, fgcolor = null;
-
-                if (bgtmp != null) {
-                    bgcolor = parseColor(bgtmp);
-                    if (bgcolor == null) {
-                        bgcolor = parseColor(bg);
-                    }
-                    else {
-                        bg = bgtmp;
-                    }
-                }
-                
-                if (fgtmp != null) {
-                    fgcolor = parseColor(fgtmp);
-                    if (fgcolor == null) {
-                        fgcolor = parseColor(fg);
-                    }
-                    else {
-                        fg = fgtmp;
-                    }
-                }
-
-                Font renderFont = FontCollection.retrieve(getServletContext()).getFont(fontNm, style, fontSz);
-                Set<FontCollection.TaggedFont.FontAttribute> fontAttrs = 
-                  FontCollection.retrieve(getServletContext()).getFontAttributes(fontNm);
-                String[] fontSpecNames = new String[fontAttrs.size() + 2];
-                int i = 0;
-                fontSpecNames[i++] = renderFont.getFontName();
-                fontSpecNames[i++] = renderFont.getFamily();
-                for (FontCollection.TaggedFont.FontAttribute attr : fontAttrs) {
-                    fontSpecNames[i++] = attr.getName();
-                }
-                
-                log("Input: " + text + " in font " + renderFont.toString());
-                text = textParser.prepForFont(text, fontSpecNames);
-                log("Output: " + text);
-
-                int imgId = renderText(text, renderFont, bgcolor, fgcolor);
-                
-                PrintWriter out = response.getWriter();
-                
-                if (request.getRequestURI().endsWith("ImageDisplay")) {
-                    // output some starting HTML
-                    out.println("<html><head><title>Ellipsix Programming TextWriter</title>");
-                    out.println("<link rel='stylesheet' type='text/css' href='/ellipsix.css'>");
-                    out.println("</head><body><div id='Banner'>&nbsp;</div>");
-                    out.println("<div id=\"Menu\"><table><tr>");
-                    out.println("<td><a href=\"http://www.ellipsix.net/index.php\">Home</a></td>");
-                    out.println("<td><a href=\"http://www.ellipsix.net/products.php\">Products</a></td>");
-                    out.println("<td><a href=\"http://www.ellipsix.net/links.php\">Links</a></td>");
-                    out.println("<td><a href=\"http://www.ellipsix.net/contact.php\">Contact</a></td>");
-                    out.println("<td><a href=\"http://www.ellipsix.net/about.php\">About Ellipsix</a></td>");
-                    out.println("</tr></table></div><div id='Body'><div id='Content'>");
-                }
-
-                out.println("Rendition of the input text:<br>");
-                out.println("<img src='" + request.getContextPath() + "/image?imageid=" + imgId + "'>");
-                out.println("<p>To save this image file to your computer, right-click on the text");
-                out.println("and choose the option &quotSave Image As&quot; or &quot;Save As&quot; from the menu.");
-                out.println("To copy the URL of the image to your system clipboard, right-click");
-                out.println("the text and select the &quot;Copy Image Location&quot; or &quot;Copy Image URL&quot;");
-                out.println("option. <i><u>Please note that the URL will only be valid for a limited");
-                out.println("amount of time.</u></i></p>");
-                out.println("<hr>");
-                out.flush();
-
-                if (request.getRequestURI().endsWith("ImageDisplay")) {
-                    // output the ending HTML
-                    out.println("</div><div id='Footer'>");
-                    out.println("<p>&copy;2005 <a href=\"mailto:contact@ellipsix.net\">Ellipsix Programming</a>;");
-                    out.println("created by David Zaslavsky.</p>");
-                    out.println("<p>This software service is provided by Ellipsix Programming for");
-                    out.println("public use on an as-is basis. Please report any errors to");
-                    out.println("<a href=\"mailto:contact@ellipsix.net\">contact@ellipsix.net</a>.</p>");
-                    out.println("</div></div></body></html>");
-                }
-            }
-        }
-        else {
-            String imageId = request.getParameter("imageid");
-            if (imageId == null) {
-                log("Note: null image id");
-                
-                response.sendError(HttpServletResponse.SC_NO_CONTENT);
-
-                return;
-            }
-            response.setContentType("image/png");
-
-            int index = Integer.parseInt(imageId);
-            WeakHashMap<Integer, BufferedImage> images = (WeakHashMap<Integer, BufferedImage>)getServletContext().getAttribute("imagemap");
-
-            ServletOutputStream out = response.getOutputStream();
-            BufferedImage img = images.get(index);
-            ImageIO.write(img, "PNG", out);
-            log("Writing image #" + index);
-            out.flush();
-            out.close();
+            BufferedImage img = renderText(text, renderFont, bgcolor, fgcolor);
         }
     }
-    
-    /** Handles the HTTP <code>GET</code> method.
-     * @param request servlet request
-     * @param response servlet response
+
+    /**
+     * Creates an image with the given text using the given rendering parameters.
+     *
+     * @param text the text to draw in the image
+     * @param font the font to use to draw the text
+     * @param bgColor the background color
+     * @param fgColor the foreground color
      */
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        processRequest(request, response);
-    }
-    
-    /** Handles the HTTP <code>POST</code> method.
-     * @param request servlet request
-     * @param response servlet response
-     */
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        processRequest(request, response);
-    }
-    
-    /** Returns a short description of the servlet.
-     */
-    public String getServletInfo() {
-        return "Generates, stores, and outputs image data";
-    }
-    
-    
-    public int renderText(String text, Font font, Color bgColor, Color fgColor) {
+    public BufferedImage renderText(String text, Font font, Color bgColor, Color fgColor) {
         // create the image
         BufferedImage image = new BufferedImage(font.getSize() * text.length() + 2, font.getSize() + 2, BufferedImage.TYPE_4BYTE_ABGR);
         
@@ -292,35 +161,12 @@ public class ImageDisplay extends HttpServlet {
             image = image.getSubimage(0, 0, (int)(bounds.getWidth() + 1), (int)(bounds.getHeight() + 1));
         }
         catch (RasterFormatException rfe) {
-            log("Error in trimming image: " + rfe.getMessage());
+//             log("Error in trimming image: " + rfe.getMessage());
             // usually means that the text boundary was bigger than the canvas
             // ignore for now
         }
-        
-        WeakHashMap<Integer, BufferedImage> images = (WeakHashMap<Integer, BufferedImage>)getServletContext().getAttribute("imagemap");
-        
-        AtomicInteger imageIdx = (AtomicInteger)getServletContext().getAttribute("imageindex");
-        int index = imageIdx.getAndIncrement();
-        images.put(index, image);
-        
-        log("created image #" + index + " with text '" + text + "'");
-        
-        return index;
-    }
 
-    Parser<Color> cParse = new JavaColorNameParser(new HexColorParser(new RGB10ColorParser(new HSB10ColorParser())));
-    
-    public Color parseColor(String input) {
-        input = input.toLowerCase();
-
-        if (input.equals("transparent")) {
-            return transparent;
-        }
-        else if (input.equals("purple")) {
-            return purple;
-        }
-        else {
-            return cParse.parse(input);
-        }
+//         log("created image with text '" + text + "'");
+        return image;
     }
 }
