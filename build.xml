@@ -5,22 +5,23 @@
   <property name="dist"  location="dist"/>
 
   <target name="init">
-    <!-- Create the time stamp -->
     <tstamp/>
-    <!-- Create the build directory structure used by compile -->
     <mkdir dir="${build}"/>
   </target>
 
   <target name="compile" depends="init" description="Compile the source">
-    <!-- Compile the java code from ${src} into ${build} -->
-    <javac srcdir="${src}" destdir="${build}"/>
+    <javac srcdir="${src}" destdir="${build}" includeantruntime="false"/>
   </target>
 
   <target name="dist" depends="compile" description="Generate the distribution">
-    <!-- Create the distribution directory -->
     <mkdir dir="${dist}/lib"/>
-    <!-- Put everything in ${build} into the MyProject-${DSTAMP}.jar file -->
     <jar jarfile="${dist}/lib/textwriter-${DSTAMP}.jar" basedir="${build}"/>
+  </target>
+  
+  <target name="sdist" depends="init" description="Create a source distribution">
+    <tar destfile="${dist}/src/textwriter-${DSTAMP}.tar" basedir="${src}"/>
+    <bzip2 src="${dist}/src/textwriter-${DSTAMP}.tar" destfile="${dist}/src/textwriter-${DSTAMP}.tar.bz2"/>
+    <delete file="${dist}/src/textwriter-${DSTAMP}.tar"/>
   </target>
 
   <target name="clean" description="Clean up">
