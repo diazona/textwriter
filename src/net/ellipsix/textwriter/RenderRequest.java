@@ -25,7 +25,9 @@
 
 package net.ellipsix.textwriter;
 
-import java.io.*;
+import java.awt.Color;
+import java.awt.Font;
+import java.io.BufferedReader;
 
 /**
  * A text rendering request as received from the Textwriter frontend.
@@ -51,10 +53,10 @@ public class RenderRequest {
         return new Color(red, green, blue, alpha);
     }
 
-    private String text;
-    private Font font;
-    private Color background;
-    private Color foreground;
+    String text;
+    Font font;
+    Color background;
+    Color foreground;
 
     public static RenderRequest parse(BufferedReader r) {
         String fontName = r.readLine();
@@ -78,9 +80,9 @@ public class RenderRequest {
     }
 
     private RenderRequest(String text, Font font, Color background, Color foreground) {
-        self.text = text;
-        self.font = font;
-        self.background = background;
-        self.foreground = foreground;
+        this.text = text;
+        this.font = font;
+        this.background = background;
+        this.foreground = foreground;
     }
 }
