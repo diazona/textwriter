@@ -25,10 +25,18 @@
 
 package net.ellipsix.textwriter;
 
+import java.awt.FontFormatException;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Set;
 
 /**
  * The main Textwriter daemon process that accepts connections and
@@ -36,26 +44,71 @@ import java.net.Socket;
  * @author David Zaslavsky
  */
 public class TextwriterDaemon {
+    // I don't use an Enum for these because the values have to be synced with the Python side
+    public static final int RENDER_MODE = 0;
     public static final int FONT_LIST_MODE = 1;
-    public static final int RENDER_MODE = 2;
+    public static final int FONT_ADD_MODE = 2;
+
     public static void main(String[] args) {
-        ServerSocket ssock = new ServerSocket(0);
-        while (true) {
-            Socket sock = ssock.accept();
-            InputStream in = sock.getInputStream();
-            int mode = in.read();
-            switch (mode) {
-                case FONT_LIST_MODE:
-                    break;
-                case RENDER_MODE:
-                    RenderRequest req = RenderRequest.parse();
-                    RenderResponse rsp = new RenderResponse(req);
-                    rsp.write(sock.getOutputStream());
-                    break;
-                default:
-                    break;
+        try {
+            ServerSocket ssock = new ServerSocket(0);
+            FontCollection fc = FontCollection.getInstance();
+            while (true) {
+                Socket sock = ssock.accept();
+                InputStream in = sock.getInputStream();
+                OutputStream out = sock.getOutputStream();
+                try {
+                    int mode = in.read();
+                    BufferedReader bfin = new BufferedReader(new InputStreamReader(in, "UTF-8"));
+                    switch (mode) {
+                        case FONT_LIST_MODE:
+                            // list all fonts known to the system
+                            Set<String> fontNames = fc.getAllFontNames();
+                            BufferedWriter bfout = new BufferedWriter(new OutputStreamWriter(out, "UTF-8"));
+                            for (String s : fontNames) {
+                                bfout.write(s + "\n");
+                            }
+                            bfout.flush();
+                            break;
+                        case FONT_ADD_MODE:
+                            // add a new font from a file or directory
+                            String filename = bfin.readLine();
+                            File file = new File(filename);
+                            if (file.canRead() || file.isDirectory()) {
+                                try {
+                                    fc.loadFonts(file);
+                                    out.write(0); // success
+                                }
+                                catch (IOException ioe) {
+                                    out.write(1);
+                                }
+                                catch (FontFormatException ffe) {
+                                    out.write(1);
+                                }
+                            }
+                            else {
+                                out.write(1); // failure
+                            }
+                            break;
+                        case RENDER_MODE:
+                            // render text
+                            RenderRequest req = RenderRequest.parse(bfin);
+                            req.write(sock.getOutputStream());
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                catch (IOException ioe) {
+                    // TODO: do something
+                }
+                finally {
+                    sock.close();
+                }
             }
-            sock.close();
+        }
+        catch (IOException ioe) {
+            System.exit(1);
         }
     }
 }

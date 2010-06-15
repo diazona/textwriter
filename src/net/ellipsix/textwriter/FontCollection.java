@@ -30,6 +30,7 @@
 package net.ellipsix.textwriter;
 
 import java.awt.Font;
+import java.awt.FontFormatException;
 import java.awt.GraphicsEnvironment;
 import java.io.BufferedReader;
 import java.io.File;
@@ -38,6 +39,7 @@ import java.io.FilenameFilter;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -63,7 +65,7 @@ public class FontCollection {
         // The font
         private Font fnt;
         // The attributes
-        private HashSet<String> attributes;
+        private Set<String> attributes;
         
         /**
          * Constructs a new {@code TaggedFont} with the given {@link Font} and
@@ -255,7 +257,7 @@ public class FontCollection {
      * list of fonts managed by this <code>FontCollection</code>.
      * @param dir the directory to search
      */
-    public void loadFontsRecursive(File dir) {
+    public void loadFontsRecursive(File dir) throws FontFormatException, IOException {
         File[] dirList = dir.listFiles(new FileFilter() {
             public boolean accept(File file) {
                 return file.isDirectory();
@@ -291,7 +293,7 @@ public class FontCollection {
      * @return a <code>HashMap</code> containing status information for each font file in the
      * given directory
      */
-    public void loadFonts(File file) {
+    public void loadFonts(File file) throws FontFormatException, IOException {
         File[] list;
         
         Map<String, Set<String>> attrMap = new HashMap<String, Set<String>>();
@@ -332,7 +334,7 @@ public class FontCollection {
                 }
             }
             // list all TTF files
-            list = dir.listFiles(new FilenameFilter() {
+            list = file.listFiles(new FilenameFilter() {
                 public boolean accept(File directory, String filename) {
                     return filename.toLowerCase().endsWith(".ttf");
                 }

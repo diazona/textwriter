@@ -34,6 +34,8 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.RasterFormatException;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
 import java.io.OutputStream;
 import javax.imageio.ImageIO;
 
@@ -49,7 +51,7 @@ public class RenderRequest {
     private Color foreground;
     private BufferedImage image;
 
-    public static RenderRequest parse(BufferedReader r) {
+    public static RenderRequest parse(BufferedReader r) throws IOException {
         String fontName = r.readLine();
         int fontSize = r.read();
         int style = r.read();
@@ -78,11 +80,11 @@ public class RenderRequest {
         this.image = renderText(text, font, background, foreground);
     }
 
-    public void write(OutputStream out) {
+    public void write(OutputStream out) throws IOException {
         ImageIO.write(image, "PNG", out);
     }
 
-    public void write(File file) {
+    public void write(File file) throws IOException {
         ImageIO.write(image, "PNG", file);
     }
 
