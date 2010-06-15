@@ -227,7 +227,7 @@ public class FontCollection {
                 if (fonts.containsKey(fnt)) {
                     continue;
                 }
-                Font font = new Font(fnt, Font.PLAIN, 1)
+                Font font = new Font(fnt, Font.PLAIN, 1);
                 if (fnt.contains("Unicode")) {
                     fonts.put(fnt, new TaggedFont(font, SYSTEM_FONT, UNICODE_FONT));
                 }
@@ -293,7 +293,7 @@ public class FontCollection {
                 try {
                     BufferedReader br = new BufferedReader(new FileReader(dirAttrFile));
                     for (String s = br.readLine(); s != null; s = br.readLine()) {
-                        s = s.trim()
+                        s = s.trim();
                         if (s.length() == 0) {
                             continue;
                         }
