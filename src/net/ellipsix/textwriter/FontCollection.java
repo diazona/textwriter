@@ -114,6 +114,15 @@ public class FontCollection {
         }
     }
     
+    public static final FontCollection getInstance() {
+        if (instance == null) {
+            instance = new FontCollection();
+        }
+        return instance;
+    }
+    
+    private static FontCollection instance = null;
+    
     // A map of font names to their corresponding fonts
     private HashMap<String, TaggedFont> fonts = new HashMap<String, TaggedFont>();
     // Access lock for the font map
@@ -126,7 +135,7 @@ public class FontCollection {
      * Creates a new instance of {@code FontCollection} and initializes it with the
      * system fonts.
      */
-    public FontCollection() {
+    private FontCollection() {
         addSystemFonts(false);
     }
 

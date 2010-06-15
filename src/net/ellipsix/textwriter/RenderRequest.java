@@ -73,7 +73,7 @@ public class RenderRequest {
                 sb.append(r.readLine() + "\n");
             text = sb.toString();
         }
-        Font font = FontCollection.getFont(fontName, fontSize, style);
+        Font font = FontCollection.getInstance().getFont(fontName, fontSize, style);
         return new RenderRequest(text, font, parseColor(background), parseColor(foreground));
     }
 
