@@ -127,6 +127,8 @@ public class FontCollection {
     private HashMap<String, TaggedFont> fonts = new HashMap<String, TaggedFont>();
     // Access lock for the font map
     private ReentrantReadWriteLock fontlock = new ReentrantReadWriteLock(false);
+    // A set of font names
+    private Set<String> fontNames = Collections.unmodifiableSet(fonts.keySet());
     
     public static final String SYSTEM_FONT = "system";
     public static final String UNICODE_FONT = "Unicode";
@@ -167,13 +169,11 @@ public class FontCollection {
     }
     
     /**
-     * Returns a {@link java.util.List List} of {@code String} objects containing
-     * the names of fonts in this collection. The list corresponds to the set of fonts
-     * that was available the last time the font name list was refreshed.
-     * @return a {@code List} containing the list of font names
-     * @see #refreshFontNames()
+     * Returns a {@link Set} of {@code String} objects representing the names
+     * of fonts in this collection.
+     * @return a {@code Set} containing the list of font names
      */
-    public List<String> getAllFontNames() {
+    public Set<String> getAllFontNames() {
         return fontNames;
     }
     
@@ -306,7 +306,7 @@ public class FontCollection {
                         if (s.length() == 0) {
                             continue;
                         }
-                        String[] words = splitter.split(s);
+                        String[] words = delimiter.split(s);
                         String fontFilename;
                         int i; // index of first attribute in the list of words
                         if (delimiter.matcher(s.substring(0,1)).matches()) {
