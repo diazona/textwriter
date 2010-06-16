@@ -54,7 +54,9 @@ public class RenderRequest {
     public static RenderRequest parse(BufferedReader r) throws IOException {
         String fontName = r.readLine();
         int fontSize = r.read();
-        int style = r.read();
+        int bold = r.read();
+        int italic = r.read();
+        int style = (bold ? Font.BOLD : 0) | (italic ? Font.ITALIC : 0);
         String background = r.readLine();
         String foreground = r.readLine();
         int nLines = r.read();
