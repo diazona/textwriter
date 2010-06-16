@@ -56,7 +56,7 @@ public class RenderRequest {
         int fontSize = r.read();
         int bold = r.read();
         int italic = r.read();
-        int style = (bold ? Font.BOLD : 0) | (italic ? Font.ITALIC : 0);
+        int style = (bold == 0 ? 0 : Font.BOLD) | (italic == 0 ? 0 : Font.ITALIC);
         String background = r.readLine();
         String foreground = r.readLine();
         int nLines = r.read();
