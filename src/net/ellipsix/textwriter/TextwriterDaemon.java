@@ -93,7 +93,16 @@ public class TextwriterDaemon {
                         case RENDER_MODE:
                             // render text
                             RenderRequest req = RenderRequest.parse(bfin);
-                            req.write(sock.getOutputStream());
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            req.write(baos);
+                            int count = baos.size();
+                            // write four bytes for the image size
+                            out.write(count >> 24);
+                            out.write(count >> 16);
+                            out.write(count >> 8);
+                            out.write(count);
+                            // write the image data
+                            baos.writeTo(out);
                             break;
                         default:
                             break;
