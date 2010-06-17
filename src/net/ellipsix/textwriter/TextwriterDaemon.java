@@ -38,6 +38,8 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.Charset;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
@@ -98,9 +100,14 @@ public class TextwriterDaemon implements Runnable {
                     case FONT_LIST_MODE:
                         // list all fonts known to the system
                         logger.finest("Listing fonts");
-                        Set<String> fontNames = fc.getAllFontNames();
-                        for (String s : fontNames) {
-                            bfout.write(s + "\n");
+                        Collection<FontCollection.TaggedFont> fonts = fc.getAllFonts();
+                        for (FontCollection.TaggedFont tf : fonts) {
+                            bfout.write(tf.getFont().getFamily() + "\n");
+                            Map<String,String> attrs = tf.getAttributes();
+                            for (String k : attrs.keySet()) {
+                                String v = attrs.get(k);
+                                bfout.write(k + "=" + v + "\n");
+                            }
                         }
                         bfout.write("\n");
                         bfout.flush();

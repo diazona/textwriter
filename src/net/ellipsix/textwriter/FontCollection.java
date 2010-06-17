@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -59,16 +60,13 @@ public class FontCollection {
     private static final Logger logger = Logger.getLogger("net.ellipsix.textwriter");
 
     /**
-     * A font associated with zero or more attributes.
-     *
-     * There are no attribute values; all the information an attribute conveys is
-     * whether a particular font has it or not.
+     * A font associated with zero or more key-value attributes.
      */
     public static class TaggedFont {
         // The font
         private Font fnt;
         // The attributes
-        private Set<String> attributes;
+        private Map<String,String> attributes;
         
         /**
          * Constructs a new {@code TaggedFont} with the given {@link Font} and
@@ -77,27 +75,16 @@ public class FontCollection {
          * @param attrs the attributes
          * @throws IllegalArgumentException if {@code fnt} is {@code null}
          */
-        TaggedFont(Font fnt, String... attrs) {
-            this(fnt, Arrays.asList(attrs));
-        }
-        
-        /**
-         * Constructs a new {@code TaggedFont} with the given {@link Font} and
-         * attributes.
-         * @param fnt any {@link Font}
-         * @param attrs the attributes
-         * @throws IllegalArgumentException if {@code fnt} is {@code null}
-         */
-        TaggedFont(Font fnt, Collection<String> attrs) {
+        TaggedFont(Font fnt, Map<String,String> attrs) {
             this.fnt = fnt;
             if (fnt == null) {
                 throw new IllegalArgumentException("Null font");
             }
             if (attrs == null) {
-                attributes = Collections.emptySet();
+                attributes = Collections.emptyMap();
             }
             else {
-                attributes = Collections.unmodifiableSet(new HashSet<String>(attrs));
+                attributes = Collections.unmodifiableMap(new HashMap<String,String>(attrs));
             }
         }
         
@@ -110,11 +97,11 @@ public class FontCollection {
         
         /**
          * Returns the set of attributes attached to this font.
-         * The returned {@code Set} is a read-only view created with
-         * {@link Collections#unmodifiableSet(Set)}.
-         * @return the set of attributes attached to this font
+         * The returned {@code Map} is a read-only view created with
+         * {@link Collections#unmodifiableMap(Map)}.
+         * @return the map of attributes attached to this font
          */
-        public Set<String> getAttributes() {
+        public Map<String,String> getAttributes() {
             return attributes;
         }
     }
@@ -190,11 +177,7 @@ public class FontCollection {
     
     /**
      * Returns {@code true} if a font with the specified name is contained in the
-     * collection. This determination is based on the actual set of fonts contained,
-     * independent of the name list, so it is possible for <code>fontExists</code> to
-     * return a value that is not contained in the list returned by {@link
-     * #getAllFontNames()} (or vice versa) if the font name list has not been refreshed
-     * since the last changes.
+     * collection.
      * @param fontName the name of the font to search for
      * @return {@code true} if a font with the given name is contained in the system, or
      *   {@code false} otherwise
@@ -212,7 +195,7 @@ public class FontCollection {
     /**
      * Gets all the attributes for a given font.
      */
-    public Set<String> getFontAttributes(String fontName) {
+    public Map<String,String> getFontAttributes(String fontName) {
         TaggedFont tfont;
         fontlock.readLock().lock();
         try {
@@ -226,6 +209,14 @@ public class FontCollection {
             return null;
         }
         return tfont.getAttributes();
+    }
+
+    /**
+     * Gets the complete list of {@link TaggedFont} objects stored by this
+     * {@code FontCollection}.
+     */
+    Collection<TaggedFont> getAllFonts() {
+        return Collections.unmodifiableCollection(fonts.values());
     }
 
     /**
@@ -248,12 +239,12 @@ public class FontCollection {
                     continue;
                 }
                 Font font = new Font(fnt, Font.PLAIN, 1);
+                Map<String,String> attrs = new HashMap<String,String>();
+                attrs.put(SYSTEM_FONT, "1");
                 if (fnt.contains("Unicode")) {
-                    fonts.put(fnt, new TaggedFont(font, SYSTEM_FONT, UNICODE_FONT));
+                    attrs.put(UNICODE_FONT, "1");
                 }
-                else {
-                    fonts.put(fnt, new TaggedFont(font, SYSTEM_FONT));
-                }
+                fonts.put(fnt, new TaggedFont(font, attrs));
             }
         }
         finally {
@@ -278,7 +269,7 @@ public class FontCollection {
         }
     }
 
-    private static final Pattern delimiter = Pattern.compile("[:,\\s]");
+    private static final Pattern fontAttrLine = Pattern.compile("(.+?)=(\".*?\"|.*?)((?::[^:]+?)*)");
 
     /**
      * Adds fonts from the given file or directory to the list of fonts managed by this
@@ -290,14 +281,13 @@ public class FontCollection {
      * the given directory.</p>
      * <p>If the parameter is a directory and there exists a file named
      * <tt>.font.attributes</tt> in it, then the contents of the file will be used to
-     * assign attributes to the fonts in the directory as follows. Each line consists of
-     * a list of words delimited by any of the characters {@code ':'}, {@code ','}, and/or
-     * any whitespace character. (These are all treated interchangeably by the parser)
-     * The first word on each line is a filename, and any remaining words are attributes
-     * to be applied to any font(s) loaded from a file with that name.</p>
-     * <p>As a special case, if the first character on a line is a delimiter character,
-     * each word on the line will be considered an attribute, and those attributes will
-     * be applied to all fonts loaded from the directory.</p>
+     * assign attributes to the fonts in the directory. Each line takes the form
+     * <code>key=value:filename1:filename2:filename3...</code>
+     * Each font in the list of filenames will receive the attribute <tt>key=value</tt>.
+     * The value may be enclosed in double quotes, e.g. if it contains a colon. The
+     * value may be the empty string but the key cannot be.</p>
+     * <p>As a special case, if the list of filenames is empty, all fonts loaded from the
+     * directory will receive the attribute.</p>
      * @param file the file to load or directory to search
      * @return a <code>HashMap</code> containing status information for each font file in the
      * given directory
@@ -305,7 +295,7 @@ public class FontCollection {
     public void loadFonts(File file) throws FontFormatException, IOException {
         File[] list;
         
-        Map<String, Set<String>> attrMap = new HashMap<String, Set<String>>();
+        Map<String, Map<String,String>> attrMap = new HashMap<String, Map<String,String>>();
         
         if (file.isDirectory()) {
             File dirAttrFile = new File(file, ".font.attributes");
@@ -313,33 +303,25 @@ public class FontCollection {
                 try {
                     BufferedReader br = new BufferedReader(new FileReader(dirAttrFile));
                     for (String s = br.readLine(); s != null; s = br.readLine()) {
-                        s = s.trim();
-                        if (s.length() == 0) {
+                        Matcher m = fontAttrLine.matcher(s);
+                        if (!m.matches()) {
                             continue;
                         }
-                        String[] words = delimiter.split(s);
-                        String fontFilename;
-                        int i; // index of first attribute in the list of words
-                        if (delimiter.matcher(s.substring(0,1)).matches()) {
-                            fontFilename = ""; // special value used to index the attributes applying to all fonts
-                            i = 0;
-                        }
-                        else {
-                            fontFilename = words[0];
-                            i = 1;
-                        }
-                        Set<String> attrs = attrMap.get(fontFilename);
-                        if (attrs == null) {
-                            attrs = new HashSet<String>();
-                            attrMap.put(fontFilename, attrs);
-                        }
-                        while (i++ < words.length) {
-                            attrs.add(words[i]);
+                        String key = m.group(1);
+                        String value = m.group(2);
+                        String[] filenames = m.group(3).split(":");
+                        for (String fn : filenames) {
+                            Map<String,String> attrs = attrMap.get(fn);
+                            if (attrs == null) {
+                                attrs = new HashMap<String,String>();
+                                attrMap.put(fn, attrs);
+                            }
+                            attrs.put(key, value);
                         }
                     }
                 }
                 catch (IOException ioe) {
-                    // if there's an error reading it, pretend it doesn't exist
+                    logger.throwing("FontCollection", "loadFonts", ioe);
                 }
             }
             // list all TTF files
@@ -353,7 +335,7 @@ public class FontCollection {
             list = new File[] {file};
         }
 
-        Set<String> genericAttrs = attrMap.get("");
+        Map<String,String> genericAttrs = attrMap.get("");
         fontlock.writeLock().lock();
         try {
             for (File fnt : list) {
@@ -361,21 +343,21 @@ public class FontCollection {
                 Font font = Font.createFont(Font.TRUETYPE_FONT, fnt);
                 if (!fonts.containsKey(font.getFamily())) {
                     // if the font was not already loaded, determine its attributes
-                    Set<String> fontAttrs = attrMap.get(fnt.getName());
+                    Map<String,String> fontAttrs = attrMap.get(fnt.getName());
                     if (fontAttrs == null) {
                         if (font.getFamily().contains("Unicode")) {
-                            fontAttrs = new HashSet<String>();
-                            fontAttrs.add(UNICODE_FONT);
-                            fontAttrs.addAll(genericAttrs);
+                            fontAttrs = new HashMap<String,String>();
+                            fontAttrs.put(UNICODE_FONT, "1");
+                            fontAttrs.putAll(genericAttrs);
                         }
                         else {
                             fontAttrs = genericAttrs;
                         }
                     }
                     else {
-                        fontAttrs.addAll(genericAttrs);
+                        fontAttrs.putAll(genericAttrs);
                         if (font.getFamily().contains("Unicode")) {
-                            fontAttrs.add(UNICODE_FONT);
+                            fontAttrs.put(UNICODE_FONT, "1");
                         }
                     }
                     fonts.put(font.getFamily(), new TaggedFont(font, fontAttrs));
