@@ -76,7 +76,7 @@ public class RenderRequest {
             text = sb.toString();
         }
         logger.finest("Getting font");
-        Font font = FontCollection.getInstance().getFont(fontName, fontSize, style);
+        Font font = FontCollection.getInstance().getFont(fontName, style, fontSize);
         return new RenderRequest(text, font, parseColor(background), parseColor(foreground));
     }
 
@@ -105,9 +105,10 @@ public class RenderRequest {
      * @param fgColor the foreground color
      */
     public static BufferedImage renderText(String text, Font font, Color bgColor, Color fgColor) {
-        logger.finest("Rendering text");
+        logger.entering("RenderRequest", "renderText", new Object[] {text, font, bgColor, fgColor});
         // create the image
         BufferedImage image = new BufferedImage(font.getSize() * text.length() + 2, font.getSize() + 2, BufferedImage.TYPE_4BYTE_ABGR);
+        logger.finest("Created image of size " + image.getWidth() + "x" + image.getHeight());
         
         // get a graphics object
         Graphics2D g = image.createGraphics();
@@ -116,6 +117,7 @@ public class RenderRequest {
         // get the text boundary
         TextLayout layout = new TextLayout(text, font, g.getFontRenderContext());
         Rectangle2D bounds = layout.getBounds();
+        logger.finest("Text bounds: " + bounds);
         
         // fill the background
         g.setColor(bgColor);
@@ -134,7 +136,7 @@ public class RenderRequest {
             logger.throwing("RenderRequest", "renderText", rfe);
             // ignore for now
         }
-        logger.finest("Created image");
+        logger.exiting("RenderRequest", "renderText", image);
         return image;
     }
 

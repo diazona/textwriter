@@ -46,6 +46,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /**
@@ -55,6 +56,8 @@ import java.util.regex.Pattern;
  * @author David Zaslavsky
  */
 public class FontCollection {
+    private static final Logger logger = Logger.getLogger("net.ellipsix.textwriter");
+
     /**
      * A font associated with zero or more attributes.
      *
@@ -118,6 +121,7 @@ public class FontCollection {
     
     public static final FontCollection getInstance() {
         if (instance == null) {
+            logger.finer("Creating FontCollection instance");
             instance = new FontCollection();
         }
         return instance;
@@ -154,6 +158,7 @@ public class FontCollection {
      * @see Font#deriveFont(int,float)
      */
     public Font getFont(String fontName, int style, float size) {
+        logger.entering("FontCollection", "getFont", new Object[] {fontName, style, size});
         TaggedFont tfont;
         fontlock.readLock().lock();
         try {
@@ -164,10 +169,14 @@ public class FontCollection {
         }
         
         if (tfont == null) {
+            logger.config("No font of name " + fontName + " found");
             return null;
         }
         Font font = tfont.getFont();
-        return font.deriveFont(style, size);
+        logger.finest("Found font " + font.toString());
+        font = font.deriveFont(style, size);
+        logger.finer("Returning font " + font.toString());
+        return font;
     }
     
     /**
