@@ -102,6 +102,7 @@ public class TextwriterDaemon implements Runnable {
                         for (String s : fontNames) {
                             bfout.write(s + "\n");
                         }
+                        bfout.write("\n");
                         bfout.flush();
                         break;
                     case FONT_ADD_MODE:
