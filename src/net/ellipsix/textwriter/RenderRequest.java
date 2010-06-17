@@ -37,6 +37,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 
 /**
@@ -45,6 +46,8 @@ import javax.imageio.ImageIO;
  * @author David Zaslavsky
  */
 public class RenderRequest {
+    private static final Logger logger = Logger.getLogger("net.ellipsix.textwriter");
+
     private String text;
     private Font font;
     private Color background;
@@ -52,6 +55,7 @@ public class RenderRequest {
     private BufferedImage image;
 
     public static RenderRequest parse(BufferedReader r) throws IOException {
+        logger.finest("Reading font information");
         String fontName = r.readLine();
         int fontSize = r.read();
         int bold = r.read();
@@ -60,6 +64,7 @@ public class RenderRequest {
         String background = r.readLine();
         String foreground = r.readLine();
         int nLines = r.read();
+        logger.finest("Reading " + nLines + " lines of text");
         String text;
         if (nLines == 1) {
             text = r.readLine();
@@ -70,6 +75,7 @@ public class RenderRequest {
                 sb.append(r.readLine() + "\n");
             text = sb.toString();
         }
+        logger.finest("Getting font");
         Font font = FontCollection.getInstance().getFont(fontName, fontSize, style);
         return new RenderRequest(text, font, parseColor(background), parseColor(foreground));
     }
@@ -99,6 +105,7 @@ public class RenderRequest {
      * @param fgColor the foreground color
      */
     public static BufferedImage renderText(String text, Font font, Color bgColor, Color fgColor) {
+        logger.finest("Rendering text");
         // create the image
         BufferedImage image = new BufferedImage(font.getSize() * text.length() + 2, font.getSize() + 2, BufferedImage.TYPE_4BYTE_ABGR);
         
@@ -123,12 +130,11 @@ public class RenderRequest {
             image = image.getSubimage(0, 0, (int)(bounds.getWidth() + 1), (int)(bounds.getHeight() + 1));
         }
         catch (RasterFormatException rfe) {
-//             log("Error in trimming image: " + rfe.getMessage());
             // usually means that the text boundary was bigger than the canvas
+            logger.throwing("RenderRequest", "renderText", rfe);
             // ignore for now
         }
-
-//         log("created image with text '" + text + "'");
+        logger.finest("Created image");
         return image;
     }
 

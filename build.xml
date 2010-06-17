@@ -15,13 +15,27 @@
 
   <target name="dist" depends="compile" description="Generate the distribution">
     <mkdir dir="${dist}/lib"/>
-    <jar jarfile="${dist}/lib/textwriter-${DSTAMP}.jar" basedir="${build}"/>
+    <jar jarfile="${dist}/lib/textwriter-${DSTAMP}.jar" basedir="${build}">
+      <manifest>
+        <attribute name="Main-Class" value="net.ellipsix.textwriter.TextwriterDaemon"/>
+      </manifest>
+    </jar>
   </target>
   
   <target name="sdist" depends="init" description="Create a source distribution">
     <tar destfile="${dist}/src/textwriter-${DSTAMP}.tar" basedir="${src}"/>
     <bzip2 src="${dist}/src/textwriter-${DSTAMP}.tar" destfile="${dist}/src/textwriter-${DSTAMP}.tar.bz2"/>
     <delete file="${dist}/src/textwriter-${DSTAMP}.tar"/>
+  </target>
+
+  <target name="run" depends="dist" description="Run the program">
+    <java jar="${dist}/lib/textwriter-${DSTAMP}.jar" fork="true"/>
+  </target>
+
+  <target name="run-verbose" depends="dist" description="Run the program with verbose output">
+    <java jar="${dist}/lib/textwriter-${DSTAMP}.jar" fork="true">
+      <sysproperty key="java.util.logging.config.file" file="verbose.properties"/>
+    </java>
   </target>
 
   <target name="clean" description="Clean up">

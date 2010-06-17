@@ -41,6 +41,8 @@ import java.nio.charset.Charset;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * The main Textwriter daemon process that accepts connections and
@@ -56,16 +58,22 @@ public class TextwriterDaemon implements Runnable {
     public static final Charset TRANSFER_CHARSET = Charset.forName("UTF-8");
     public static final FontCollection fc = FontCollection.getInstance();
 
+    private static final Logger logger = Logger.getLogger("net.ellipsix.textwriter");
+    
     public static void main(String[] args) {
+        logger.finest("Starting Textwriter");
         ExecutorService executor = Executors.newFixedThreadPool(5); // TODO: configure this value
         try {
+            logger.finest("Opening ServerSocket on port 47521");
             ServerSocket ssock = new ServerSocket(47251);
             while (true) {
                 Socket sock = ssock.accept();
+                logger.finest("Got a connection");
                 executor.execute(new TextwriterDaemon(sock));
             }
         }
         catch (IOException ioe) {
+            logger.throwing("TextwriterDaemon", "main", ioe);
             System.exit(1);
         }
     }
@@ -77,16 +85,19 @@ public class TextwriterDaemon implements Runnable {
     }
             
     public void run() {
+        logger.finest("Starting Textwriter thread");
         try{
             BufferedReader bfin = new BufferedReader(new InputStreamReader(sock.getInputStream(), TRANSFER_CHARSET));
             OutputStream out = sock.getOutputStream();
             BufferedWriter bfout = new BufferedWriter(new OutputStreamWriter(out, TRANSFER_CHARSET));
+            readloop:
             while (true) {
                 // read a request
                 int mode = bfin.read();
                 switch (mode) {
                     case FONT_LIST_MODE:
                         // list all fonts known to the system
+                        logger.finest("Listing fonts");
                         Set<String> fontNames = fc.getAllFontNames();
                         for (String s : fontNames) {
                             bfout.write(s + "\n");
@@ -95,47 +106,62 @@ public class TextwriterDaemon implements Runnable {
                         break;
                     case FONT_ADD_MODE:
                         // add a new font from a file or directory
+                        logger.finest("Adding fonts");
                         String filename = bfin.readLine();
                         File file = new File(filename);
                         if (file.canRead() || file.isDirectory()) {
                             try {
                                 fc.loadFonts(file);
+                                logger.finest("Loaded fonts from " + file.getPath());
                                 out.write(0); // success
                             }
                             catch (IOException ioe) {
+                                logger.throwing("TextwriterDaemon", "run", ioe);
                                 out.write(1);
                             }
                             catch (FontFormatException ffe) {
+                                logger.throwing("TextwriterDaemon", "run", ffe);
                                 out.write(1);
                             }
                         }
                         else {
+                            logger.info("Unreadable file " + file.getPath());
                             out.write(1); // failure
                         }
                         out.flush();
                         break;
                     case RENDER_MODE:
                         // render text
+                        logger.finest("Rendering text");
                         RenderRequest req = RenderRequest.parse(bfin);
+                        logger.finest("Successfully parsed request");
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
                         req.write(baos);
                         int count = baos.size();
                         // write four bytes for the image size
+                        logger.finest("Writing 4 bytes");
                         out.write(count >> 24);
                         out.write(count >> 16);
                         out.write(count >> 8);
                         out.write(count);
                         // write the image data
+                        logger.finest("Writing " + count + " bytes of image data");
                         baos.writeTo(out);
                         out.flush();
+                        logger.finest("Done writing image data");
                         break;
+                    case -1:
+                        // EOF
+                        logger.finest("EOF on socket");
+                        break readloop;
                     default:
+                        logger.info("Invalid mode " + String.valueOf(mode));
                         break;
                 }
             }
         }
         catch (IOException ioe) {
-            // TODO: log it
+            logger.throwing("TextwriterDaemon", "run", ioe);
         }
         // quit and return
     }
@@ -145,7 +171,7 @@ public class TextwriterDaemon implements Runnable {
             sock.close();
         }
         catch (IOException ioe) {
-            // TODO: log it
+            logger.throwing("TextwriterDaemon", "finalize", ioe);
         }
     }
 }
