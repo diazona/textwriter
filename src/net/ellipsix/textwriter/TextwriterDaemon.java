@@ -59,7 +59,7 @@ public class TextwriterDaemon implements Runnable {
     public static void main(String[] args) {
         ExecutorService executor = Executors.newFixedThreadPool(5); // TODO: configure this value
         try {
-            ServerSocket ssock = new ServerSocket(0);
+            ServerSocket ssock = new ServerSocket(47251);
             while (true) {
                 Socket sock = ssock.accept();
                 executor.execute(new TextwriterDaemon(sock));
