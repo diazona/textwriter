@@ -63,10 +63,10 @@ public class TextwriterDaemon implements Runnable {
     private static final Logger logger = Logger.getLogger("net.ellipsix.textwriter");
     
     public static void main(String[] args) {
-        logger.finest("Starting Textwriter");
+        logger.fine("Starting Textwriter");
         ExecutorService executor = Executors.newFixedThreadPool(5); // TODO: configure this value
         try {
-            logger.finest("Opening ServerSocket on port 47521");
+            logger.finer("Opening ServerSocket on port 47521");
             ServerSocket ssock = new ServerSocket(47251);
             while (true) {
                 Socket sock = ssock.accept();
@@ -87,7 +87,7 @@ public class TextwriterDaemon implements Runnable {
     }
             
     public void run() {
-        logger.finest("Starting Textwriter thread");
+        logger.info("Starting Textwriter thread");
         try{
             BufferedReader bfin = new BufferedReader(new InputStreamReader(sock.getInputStream(), TRANSFER_CHARSET));
             OutputStream out = sock.getOutputStream();
@@ -99,7 +99,7 @@ public class TextwriterDaemon implements Runnable {
                 switch (mode) {
                     case FONT_LIST_MODE:
                         // list all fonts known to the system
-                        logger.finest("Listing fonts");
+                        logger.fine("Listing fonts");
                         Collection<FontCollection.TaggedFont> fonts = fc.getAllFonts();
                         for (FontCollection.TaggedFont tf : fonts) {
                             bfout.write(tf.getFont().getFamily() + "\n");
@@ -114,7 +114,7 @@ public class TextwriterDaemon implements Runnable {
                         break;
                     case FONT_ADD_MODE:
                         // add a new font from a file or directory
-                        logger.finest("Adding fonts");
+                        logger.fine("Adding fonts");
                         String filename = bfin.readLine();
                         File file = new File(filename);
                         if (file.canRead() || file.isDirectory()) {
@@ -140,7 +140,7 @@ public class TextwriterDaemon implements Runnable {
                         break;
                     case RENDER_MODE:
                         // render text
-                        logger.finest("Rendering text");
+                        logger.fine("Rendering text");
                         RenderRequest req = RenderRequest.parse(bfin);
                         logger.finest("Successfully parsed request");
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -160,7 +160,7 @@ public class TextwriterDaemon implements Runnable {
                         break;
                     case -1:
                         // EOF
-                        logger.finest("EOF on socket");
+                        logger.info("EOF on socket");
                         break readloop;
                     default:
                         logger.info("Invalid mode " + String.valueOf(mode));
