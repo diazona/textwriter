@@ -309,7 +309,13 @@ public class FontCollection {
                         }
                         String key = m.group(1);
                         String value = m.group(2);
-                        String[] filenames = m.group(3).split(":");
+                        String[] filenames;
+                        if ("".equals(m.group(3))) {
+                            filenames = new String[] {""};
+                        }
+                        else {
+                            filenames = m.group(3).substring(1).split(":");
+                        }
                         for (String fn : filenames) {
                             Map<String,String> attrs = attrMap.get(fn);
                             if (attrs == null) {
