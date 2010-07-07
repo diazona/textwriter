@@ -119,7 +119,12 @@ public class TextwriterDaemon implements Runnable {
                         File file = new File(filename);
                         if (file.canRead() || file.isDirectory()) {
                             try {
-                                fc.loadFonts(file);
+                                if (file.isDirectory()) { // TODO: maybe incorporate this choice into loadFontsRecursive()
+                                    fc.loadFontsRecursive(file);
+                                }
+                                else {
+                                    fc.loadFonts(file);
+                                }
                                 logger.finer("Loaded fonts from " + file.getPath());
                                 out.write(0); // success
                             }
