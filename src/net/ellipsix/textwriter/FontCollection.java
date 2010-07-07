@@ -343,6 +343,9 @@ public class FontCollection {
         }
 
         Map<String,String> genericAttrs = attrMap.get("");
+        if (genericAttrs == null) {
+            genericAttrs = new HashMap<String,String>();
+        }
         fontlock.writeLock().lock();
         try {
             for (File fnt : list) {
