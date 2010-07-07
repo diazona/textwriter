@@ -123,6 +123,7 @@ public class FontCollection {
     // A set of font names
     private Set<String> fontNames = Collections.unmodifiableSet(fonts.keySet());
     
+    public static final String SOURCE = "source";
     public static final String SYSTEM_FONT = "system";
     public static final String UNICODE_FONT = "Unicode";
     
@@ -367,6 +368,7 @@ public class FontCollection {
                             fontAttrs.put(UNICODE_FONT, "1");
                         }
                     }
+                    fontAttrs.put(SOURCE, fnt.getPath());
                     logger.finest("Adding font " + font.getFamily() + "; attributes=" + fontAttrs);
                     fonts.put(font.getFamily(), new TaggedFont(font, fontAttrs));
                 }
