@@ -339,6 +339,7 @@ public class FontCollection {
         fontlock.writeLock().lock();
         try {
             for (File fnt : list) {
+                logger.finest("Loading file " + fnt.getPath());
                 // TODO: does it make sense to catch exceptions in here?
                 Font font = Font.createFont(Font.TRUETYPE_FONT, fnt);
                 if (!fonts.containsKey(font.getFamily())) {
@@ -360,6 +361,7 @@ public class FontCollection {
                             fontAttrs.put(UNICODE_FONT, "1");
                         }
                     }
+                    logger.finest("Adding font " + font.getFamily() + "; attributes=" + fontAttrs);
                     fonts.put(font.getFamily(), new TaggedFont(font, fontAttrs));
                 }
             }

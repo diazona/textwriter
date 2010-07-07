@@ -120,7 +120,7 @@ public class TextwriterDaemon implements Runnable {
                         if (file.canRead() || file.isDirectory()) {
                             try {
                                 fc.loadFonts(file);
-                                logger.finest("Loaded fonts from " + file.getPath());
+                                logger.finer("Loaded fonts from " + file.getPath());
                                 out.write(0); // success
                             }
                             catch (IOException ioe) {
